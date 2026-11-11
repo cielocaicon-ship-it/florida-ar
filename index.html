@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b1026">
+<title>Florida AR Adventure</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+<video id="cam" playsinline muted autoplay></video>
+<canvas id="scene"></canvas>
+
+<div id="app">
+  <div id="touch"></div>
+  <canvas id="handsLayer"></canvas>
+  <div id="crosshair" class="hidden"></div>
+  <div id="cursor"></div>
+  <div id="flash"></div>
+
+  <header id="hud" class="hidden">
+    <button id="bBack" class="ib" aria-label="Regresar">←</button>
+    <div class="tools">
+      <button id="bSound" class="ib" aria-label="Sonido">🔊</button>
+      <button id="bMode" class="ib" aria-label="Cambiar controles">⚙️</button>
+      <button id="bRestart" class="ib" aria-label="Reiniciar">↻</button>
+      <button id="bCenter" class="ib" aria-label="Recentrar">🎯</button>
+      <button id="bGyro" class="ib" aria-label="Sensor de movimiento">🧭</button>
+      <button id="bPts" class="ib off" aria-label="Puntos de la mano">✋</button>
+    </div>
+    <div id="stars"></div>
+  </header>
+  <div id="info" class="hidden"></div>
+  <div id="hint" class="hidden"></div>
+
+  <div id="spells" class="hidden">
+    <button class="sp on" data-s="expelliarmus">🔴<span>Expelliarmus</span></button>
+    <button class="sp" data-s="stupefy">⚡<span>Stupefy</span></button>
+    <button class="sp" data-s="protego">🛡️<span>Protego</span></button>
+    <button id="bCast" class="cast">✨ Lanzar</button>
+  </div>
+
+  <section id="welcome" class="screen show">
+    <div class="panel">
+      <div class="emo">🏰 🌴 🏀</div>
+      <h1>FLORIDA<br>AR ADVENTURE</h1>
+      <p>Abre el cofre mágico y descubre Orlando, Miami y el Miami Heat en realidad aumentada, directo en tu navegador.</p>
+      <button id="bStart" class="btn primary">Comenzar aventura</button>
+      <p class="small">En celular, úsalo en vertical.</p>
+    </div>
+  </section>
+
+  <section id="perm" class="screen">
+    <div class="panel">
+      <div class="emo">📷</div>
+      <h2>Necesitamos tu cámara</h2>
+      <p>El juego muestra tu entorno real y coloca escenarios 3D encima. En celular se usa la cámara trasera; en computador, la cámara web. No se graba ni se envía nada.</p>
+      <p id="camErr" class="err hidden"></p>
+      <button id="bCam" class="btn primary">Permitir cámara</button>
+      <button id="bNoCam" class="btn">Jugar sin cámara</button>
+    </div>
+  </section>
+
+  <section id="controls" class="screen">
+    <div class="panel">
+      <h2>¿Cómo quieres jugar?</h2>
+      <button class="opt" data-m="hand" id="optHand"><b>✋ Modo A · Gestos de mano</b><span>Tu dedo índice mueve un cursor. Junta pulgar e índice (pinza) para seleccionar. Ideal en computador.</span></button>
+      <button class="opt" data-m="touch" id="optTouch"><b>👆 Modo B · Controles táctiles</b><span>Toca, desliza y mueve el teléfono para mirar. Ideal en celular.</span></button>
+      <button class="opt hidden" data-m="xr" id="optXR"><b>🌐 AR espacial (WebXR)</b><span>Ancla los escenarios en tu espacio real. Solo en dispositivos compatibles. Usa controles táctiles.</span></button>
+    </div>
+  </section>
+
+  <div id="card" class="modal">
+    <div class="panel"><h2></h2><div class="body"></div><div class="btns"></div></div>
+  </div>
+  <div id="toast"></div>
+</div>
+
+<script type="module" src="game.js"></script>
+</body>
+</html>
