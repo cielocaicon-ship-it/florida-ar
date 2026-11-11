@@ -7,7 +7,7 @@ import { createHub, GAMES, Sparks, starMesh, disposeTree } from './scenes.js';
 const $ = id => document.getElementById(id);
 const video = $('cam');
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
-const S = { mode: 'touch', stars: { orlando: 0, miami: 0, heat: 0 }, sound: true, cam: false, mirror: false, pts: true, key: null, scene: null };
+const S = { mode: 'touch', stars: { orlando: 0, miami: 0, heat: 0 }, sound: true, cam: false, mirror: false, pts: false, key: null, scene: null };
 const EYE = 1.6;
 
 /* ================= 3D ================= */
@@ -135,7 +135,7 @@ function onHand(r) {
   if (!r.present) {
     hand.present = false; cur.style.opacity = 0;
     if (hand.pinch) { hand.pinch = false; emit('up', hand.x, hand.y, 'hand'); }
-    drawPts(null); return;
+    return;
   }
   hand.seen = performance.now(); hand.present = true; hand.pose = r.pose;
   const [tx, ty] = toScreen(r.px, r.py, 1.4);
@@ -149,7 +149,6 @@ function onHand(r) {
   hand.pinch = r.pinch;
   hand.open = r.pose === 'open' ? hand.open + 1 : 0;
   if (hand.open === 4 && S.scene && S.scene.palm && !blocked()) S.scene.palm();
-  drawPts(r.lm);
 }
 function updateDwell(dt) { // seleccionar dejando el dedo quieto encima
   const cur = $('cursor');
@@ -214,6 +213,8 @@ const SFX = {
   click: () => tone(660, 0.08, 'square', 0.05),
   chest: () => { noise(0.35, 0.25, 400); arp([523, 659, 784, 1047, 1319], 0.09, 'triangle', 0.15); },
   rattle: () => { for (let i = 0; i < 4; i++) noise(0.06, 0.2, 300, i * 0.1); },
+  shutter: () => { noise(0.05, 0.3, 3000); noise(0.08, 0.25, 1800, 0.09); },
+  rumble: () => { noise(7, 0.5, 90, 0, 0.3); noise(6, 0.3, 300, 0.3, 0.3); tone(45, 7, 'sawtooth', 0.12, 30); },
   portal: () => { tone(200, 0.8, 'sine', 0.25, 900); tone(300, 0.8, 'triangle', 0.1, 1400); noise(0.8, 0.12, 2000); },
   gate: () => { tone(70, 1.6, 'sawtooth', 0.12, 50); noise(1.6, 0.1, 250, 0, 3); },
   spell: () => { tone(1400, 0.3, 'sawtooth', 0.06, 250); noise(0.3, 0.14, 3200); },
@@ -256,14 +257,12 @@ function setInfo(t) { $('info').innerHTML = t || ''; $('info').classList.toggle(
 function setHint(t) { $('hint').innerHTML = t || ''; $('hint').classList.toggle('hidden', !t); }
 function flash() { const f = $('flash'); f.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on'))); }
 function fade(on) { $('fade').classList.toggle('on', on); }
-const NAMES = [['orlando', '🏰', 'Orlando'], ['miami', '🌴', 'Miami'], ['heat', '🏀', 'Miami Heat']];
+const NAMES = [['orlando', '🏰', 'Orlando'], ['miami', '🌴', 'Tour Florida'], ['heat', '🏀', 'Miami Heat']];
 function updateStars() {
   $('stars').innerHTML = NAMES.map(([k, i, n]) => `<span class="chip ${S.stars[k] ? 'got' : ''}">${i} ${n}: ${S.stars[k]}/1${S.stars[k] ? ' ⭐' : ''}</span>`).join('');
 }
 function refreshTools() {
   $('bBack').style.visibility = S.key && S.key !== 'hub' ? 'visible' : 'hidden';
-  $('bPts').classList.toggle('hidden', S.mode !== 'hand');
-  $('bPts').classList.toggle('off', !S.pts);
   $('bCenter').classList.toggle('hidden', !gyro.on);
   $('bGyro').classList.toggle('hidden', !gyro.avail);
   $('bGyro').classList.toggle('off', !gyro.on);
@@ -409,7 +408,6 @@ $('bGyro').onclick = () => {
   requestGyro(); gyro.on = !gyro.on; lookReset(look.yaw, 0);
   refreshTools(); toast(gyro.on ? 'Movimiento activado: gira el celular para mirar alrededor' : 'Movimiento desactivado: arrastra el dedo para mirar', 2200);
 };
-$('bPts').onclick = () => { S.pts = !S.pts; refreshTools(); if (!S.pts) drawPts(null); };
 
 /* ================= Bucle principal ================= */
 const clock = new THREE.Clock(); let T = 0;
