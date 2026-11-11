@@ -542,7 +542,7 @@ function wizard() { // mago enemigo
   const tip = glow(0x66ff88, 0.25); tip.position.y = -0.4; wand.add(tip);
   const bar = new THREE.Group(); bar.position.y = 2.55; w.add(bar);
   add(bar, new THREE.PlaneGeometry(0.9, 0.13), B(0x111111), 0, 0, 0, false);
-  const segs = [0, 1, 2].map(i => add(bar, new THREE.PlaneGeometry(0.27, 0.08), B(0xff3344), -0.29 + i * 0.29, 0, 0.002, false));
+  const segs = [0, 1, 2, 3, 4, 5].map(i => add(bar, new THREE.PlaneGeometry(0.13, 0.08), B(0xff3344), -0.375 + i * 0.15, 0, 0.002, false));
   return { w, robeM, arms, wand, tip, bar, segs, cape };
 }
 
@@ -782,7 +782,7 @@ function orlando(ctx, opt) {
   let alive = true, running = false, hits = 0, hp = 4, cd = 0, shieldT = 0, shieldCd = 0, stun = 0, disarm = 0, fireT = 3, charge = 0, dead = 0, won = false, tx = 0, moveT = 0, kick = 0, castAnim = 0, gateOpen = 0, gateSnd = false;
   const shots = [], foes = [], flying = [];
   const enC = new V3(), camW = () => camera.getWorldPosition(_w);
-  const info = () => ctx.info(`${'❤️'.repeat(hp)}${'🖤'.repeat(4 - hp)} · Aciertos ${hits}/3`);
+  const info = () => ctx.info(`${'❤️'.repeat(hp)}${'🖤'.repeat(4 - hp)} · Aciertos ${hits}/6${hits >= 3 ? ' · 😡 fase 2' : ''}`);
   const intro = withIntro(ctx, opt, [
     { t: 0, p: [0, 1.6, 54], yaw: 0, pitch: 0.12 },
     { t: 3, p: [0, 1.6, 41], yaw: 0, pitch: 0.18 },
@@ -816,7 +816,7 @@ function orlando(ctx, opt) {
   }
   function protego() { if (!running || shieldCd > 0) return; shieldT = 1.7; shieldCd = 3; ctx.sfx('block'); }
   function enemyHit(kind) {
-    hits++; E.segs[3 - hits].visible = false; ctx.sfx('hit'); info();
+    hits++; E.segs[6 - hits].visible = false; if (hits === 3) { ctx.toast('😡 ¡El mago se enfurece! Ahora se mueve y ataca más rápido.', 3500); E.tip.material.color.set(0xff3344); } ctx.sfx('hit'); info();
     ctx.burst(en.localToWorld(_v.set(0, 1.2, 0)), [COL[kind], 0xffffff], 50, 2);
     E.robeM.emissive.set(kind === 'stupefy' ? 0x1f4f99 : 0x661111);
     if (kind === 'stupefy') stun = 2.6;
@@ -825,7 +825,7 @@ function orlando(ctx, opt) {
       const fw = add(g, cyl(0.012, 0.018, 0.4, 6), M(0x2a1a0a), 0, 0, 0, false);
       E.wand.getWorldPosition(fw.position); fw.userData = { v: new V3(rnd(-1.5, 1.5), 4.5, rnd(1, 2)), life: 1.8 }; flying.push(fw);
     }
-    if (hits >= 3) { running = false; dead = 0.001; }
+    if (hits >= 6) { running = false; dead = 0.001; }
   }
   function remove(list, i) { const o = list[i]; g.remove(o.m || o); disposeTree(o.m || o); list.splice(i, 1); }
   const refreshHint = () => ctx.hint(ctx.isHand() ? '☝️ Apunta al mago con tu índice (dispara solo) · ✋ palma abierta = Protego' : 'Toca al mago o pulsa ✨ Lanzar · arrastra o gira el celular para mirar');
@@ -902,14 +902,14 @@ function orlando(ctx, opt) {
         stun = Math.max(0, stun - dt); disarm = Math.max(0, disarm - dt);
         if (!disarm) E.wand.visible = true;
         if (!stun && !disarm) E.robeM.emissive.lerp(_u.set(0, 0, 0), dt * 3);
-        if (!stun) { moveT -= dt; if (moveT <= 0) { moveT = rnd(1.6, 2.8); tx = rnd(-3, 3); } en.position.x = lerp(en.position.x, tx, dt * 1.5); en.position.y = Math.sin(t * 2) * 0.05; }
+        if (!stun) { moveT -= dt; if (moveT <= 0) { moveT = hits >= 3 ? rnd(0.9, 1.6) : rnd(1.6, 2.8); tx = rnd(-3.5, 3.5); } en.position.x = lerp(en.position.x, tx, dt * (hits >= 3 ? 2.6 : 1.5)); en.position.y = Math.sin(t * 2) * 0.05; }
         if (!stun && !disarm) {
           fireT -= dt;
           if (fireT < 0.9) { if (!charge) ctx.sfx('charge'); charge = 1; }
           castAnim = lerp(castAnim, fireT < 0.9 ? 1 : 0, dt * 6);
           E.tip.scale.setScalar(0.25 + (fireT < 0.9 ? (0.9 - fireT) * 0.9 : 0));
           if (fireT <= 0) {
-            fireT = rnd(2.4, 3.3); charge = 0;
+            fireT = hits >= 3 ? rnd(1.6, 2.3) : rnd(2.4, 3.3); charge = 0;
             const from = E.tip.getWorldPosition(new V3()), to = cw.clone().add(_v.set(rnd(-0.2, 0.2), -0.1, 0));
             const m = add(g, sph(0.1, 10), B(0x66ff88), from.x, from.y, from.z, false); m.add(glow(0x66ff88, 1.3));
             foes.push({ m, v: to.sub(from).normalize().multiplyScalar(7) });
@@ -1143,9 +1143,9 @@ function miami(ctx, opt) {
   const traffic = [[0xff4fa3, -30, 17.4, -6], [0x24d1ff, 20, 17.4, -6], [0xffe14d, 60, 17.4, -6]].map(a => car(Z1, ...a));
   roadSign(Z1, -40, 21, '📍 MIAMI BEACH', '#0a7a3a');
   const turtles = [];
-  for (const [x, z] of [[-10, -9], [8, -10], [25, -8], [50, -11]]) { const t = addAnimal(turtle(), '🐢', 1.6); t.position.set(x, 0.02, z); t.rotation.y = Math.PI; Z1.add(t); turtles.push(t); }
+  for (const [x, z] of [[-9, -3], [-3, -5], [4, -2], [10, -4], [16, -3]]) { const t = addAnimal(turtle(), '🐢', 1.6); t.scale.setScalar(1.4); t.position.set(x, 0.02, z); t.rotation.y = Math.PI; Z1.add(t); turtles.push(t); }
   const birds = [];
-  for (let i = 0; i < 6; i++) { const b = spawnGLB('Parrot.glb', Z1, mixers, { s: 0.012 }); addAnimal(b, '🦜', 2.2); b.userData = { ...b.userData, r: rnd(6, 14), h: rnd(7, 13), cx: rnd(-40, 50), cz: rnd(-2, 6), sp: rnd(0.35, 0.6) * (Math.random() < 0.5 ? 1 : -1), ph: rnd(0, 6) }; birds.push(b); }
+  for (let i = 0; i < 6; i++) { const b = spawnGLB('Parrot.glb', Z1, mixers, { s: 0.012 }); addAnimal(b, '🦜', 2.2); b.userData = { ...b.userData, r: rnd(4, 8), h: rnd(5, 9), cx: rnd(-14, 14), cz: rnd(4, 10), sp: rnd(0.35, 0.6) * (Math.random() < 0.5 ? 1 : -1), ph: rnd(0, 6) }; birds.push(b); }
 
   /* ----- Zona 2: Everglades ----- */
   const Z2 = zone(150);
@@ -1162,12 +1162,12 @@ function miami(ctx, opt) {
   Z2.add(sawI);
   for (let i = 0; i < 28; i++) { let z; do { z = rnd(-60, 80); } while (Math.abs(z - 15.5) < 10); cypress(Z2, rnd(85, 225), z, rnd(0.9, 1.4)); }
   const gators = [];
-  for (const [x, z, swim] of [[105, 4, 1], [125, 27, 0], [140, 3, 1], [160, 29, 1], [178, 5, 0], [195, 25, 1], [210, 3, 1]]) {
-    const a = addAnimal(gator(), '🐊', 2); a.position.set(x, swim ? -0.32 : 0.05, z); a.rotation.y = rnd(0, 6.28); a.userData.swim = swim; a.userData.ph = rnd(0, 6);
+  for (const [x, z, swim] of [[120, 5, 1], [136, 6, 1], [142, 25, 0], [150, 7, 0], [156, 26, 1], [163, 5, 1], [170, 24, 0], [190, 26, 1]]) {
+    const a = addAnimal(gator(), '🐊', 2); a.scale.setScalar(1.6); a.position.set(x, swim ? -0.32 : 0.05, z); a.rotation.y = rnd(0, 6.28); a.userData.swim = swim; a.userData.ph = rnd(0, 6);
     if (!swim) add(Z2, cyl(2.6, 2.8, 0.4, 20), M(0x5a4a30, { roughness: 1 }), x, -0.15, z);
     Z2.add(a); gators.push(a);
   }
-  for (let i = 0; i < 7; i++) { const b = spawnGLB('Flamingo.glb', Z2, mixers, { s: 0.014 }); addAnimal(b, '🦩', 2.8); b.userData = { ...b.userData, r: rnd(10, 22), h: rnd(6, 12), cx: rnd(120, 190), cz: rnd(-5, 30), sp: rnd(0.25, 0.4), ph: i * 0.9 }; birds.push(b); }
+  for (let i = 0; i < 7; i++) { const b = spawnGLB('Flamingo.glb', Z2, mixers, { s: 0.014 }); addAnimal(b, '🦩', 2.8); b.userData = { ...b.userData, r: rnd(7, 13), h: rnd(4, 8), cx: rnd(140, 160), cz: rnd(-4, 30), sp: rnd(0.25, 0.4), ph: i * 0.9 }; birds.push(b); }
   const airboat = new THREE.Group(); airboat.position.set(130, -0.15, -8); Z2.add(airboat);
   add(airboat, box(4, 0.5, 2), M(0xdddddd, { metalness: 0.6, roughness: 0.3 }), 0, 0.2, 0);
   add(airboat, new THREE.TorusGeometry(1.1, 0.06, 8, 24), M(0x333333, { metalness: 0.8 }), -1.6, 1.5, 0).rotation.y = Math.PI / 2;
@@ -1197,7 +1197,7 @@ function miami(ctx, opt) {
   const buoyT = canvasTex(512, 256, (q, w, h) => { q.fillStyle = '#111'; q.fillRect(0, 0, w, h * 0.18); q.fillStyle = '#d4202a'; q.fillRect(0, h * 0.18, w, h * 0.22); q.fillStyle = '#f2c230'; q.fillRect(0, h * 0.4, w, h * 0.32); q.fillStyle = '#111'; q.fillRect(0, h * 0.72, w, h * 0.28); q.fillStyle = '#111'; q.font = 'bold 30px system-ui'; q.textAlign = 'center'; q.fillText('PUNTO MÁS AL SUR · EE. UU.', w / 4, h * 0.53); q.fillText('KEY WEST · 90 MILLAS A CUBA', w / 4, h * 0.66); q.fillText('PUNTO MÁS AL SUR · EE. UU.', w * 0.75, h * 0.53); q.fillText('KEY WEST · 90 MILLAS A CUBA', w * 0.75, h * 0.66); });
   add(Z3, new THREE.LatheGeometry([new V2(0.001, 3.8), new V2(0.9, 3.7), new V2(1.2, 3.2), new V2(1.5, 1), new V2(1.7, 0)], 28), temp(new THREE.MeshStandardMaterial({ map: buoyT, roughness: 0.6 })), 350, 0.3, 32);
   const dolphins = [];
-  for (let i = 0; i < 5; i++) { const d = addAnimal(dolphin(), '🐬', 2.2); d.userData.ph = i * 1.3; d.userData.x0 = 255 + i * 22; d.userData.z0 = i % 2 ? -10 : 38; Z3.add(d); dolphins.push(d); }
+  for (let i = 0; i < 5; i++) { const d = addAnimal(dolphin(), '🐬', 2.2); d.userData.ph = i * 1.3; d.scale.setScalar(1.3); d.userData.x0 = 278 + i * 8; d.userData.z0 = i % 2 ? 4 : 27; Z3.add(d); dolphins.push(d); }
   for (let i = 0; i < 5; i++) { const b = spawnGLB('Flamingo.glb', Z3, mixers, { s: 0.014 }); addAnimal(b, '🦩', 2.8); b.userData = { ...b.userData, r: rnd(12, 20), h: rnd(8, 12), cx: rnd(270, 330), cz: rnd(-20, 40), sp: rnd(0.25, 0.4), ph: i * 1.1 }; birds.push(b); }
   const boats = [];
   for (const [x, z] of [[270, -40], [320, 60], [345, -55]]) {
@@ -1267,7 +1267,36 @@ function miami(ctx, opt) {
     '📍 Overseas Highway — unos 182 km y 42 puentes que unen los Cayos. Key West está a 90 millas de Cuba.',
     '📍 Cabo Cañaveral — desde el Centro Espacial Kennedy despegó el Apolo 11 hacia la Luna en 1969.'
   ];
-  const info = () => ctx.info(`📸 ${shots.size}/5 · ${Object.keys(SP).map(k => shots.has(k) ? '✅' : k).join(' ')}`);
+  const STOPS = [
+    { x: 0, name: 'Miami Beach', need: ['🐢', '🦜'], tip: 'Busca 🐢 tortugas en la arena (a tu izquierda) y 🦜 loros volando sobre las palmeras',
+      q: '¿De qué estilo son los edificios famosos de Miami Beach?', o: ['Gótico', 'Art Déco', 'Barroco'], a: 1 },
+    { x: 150, name: 'Everglades', need: ['🐊', '🦩'], tip: 'Busca 🐊 caimanes en el agua y en las orillas, y 🦩 flamencos volando',
+      q: '¿Qué tiene de único el sur de Florida?', o: ['Tiene volcanes activos', 'Caimanes y cocodrilos viven juntos en libertad', 'Nieva todo el año'], a: 1 },
+    { x: 300, name: 'Cayos de Florida', need: ['🐬'], tip: 'Busca 🐬 delfines saltando a los dos lados del puente',
+      q: '¿A cuántas millas de Cuba está Key West?', o: ['9 millas', '90 millas', '900 millas'], a: 1 },
+    { x: 445, name: 'Cabo Cañaveral', need: [], tip: '🚀 Mira a tu izquierda: ¡va a despegar un cohete!',
+      q: '¿Qué misión despegó en 1969 desde el Centro Espacial Kennedy rumbo a la Luna?', o: ['Apolo 11', 'Sputnik 1', 'Titanic'], a: 0 }
+  ];
+  let phase = 'drive', stopI = 0, stopT = 0, good = 0;
+  const arrow = document.getElementById('arrow');
+  const left = () => STOPS[stopI].need.filter(k => !shots.has(k));
+  const info = () => ctx.info(phase === 'drive'
+    ? `🚗 Rumbo a ${STOPS[stopI].name} · 📸 ${shots.size}/5`
+    : `📍 Parada ${stopI + 1}/4 · ${STOPS[stopI].name} · 📸 ${shots.size}/5 ${Object.keys(SP).map(k => shots.has(k) ? '✅' : k).join('')}`);
+  function arrive() {
+    phase = 'stop'; stopT = 0; ctx.sfx('portal'); info();
+    ctx.toast(ZFACT[stopI], 7000); ctx.hint(`📍 PARADA ${stopI + 1}/4 · ${STOPS[stopI].tip}. Sigue la flecha amarilla ➤`);
+    if (stopI === 3) { launched = 0.001; ctx.sfx('charge'); }
+  }
+  function ask() {
+    const S = STOPS[stopI]; phase = 'quiz'; arrow.classList.add('hidden');
+    ctx.card(`❓ Pregunta ${stopI + 1} de 4 · ${S.name}`, `<p>${S.q}</p>`, S.o.map((o, i) => ({ label: o, fn: () => {
+      if (i === S.a) { good++; ctx.sfx('pickup'); ctx.toast(`✅ ¡Correcto! Llevas ${good} de ${stopI + 1}.`, 2500); }
+      else { ctx.sfx('hurt'); ctx.toast(`❌ Era: ${S.o[S.a]}`, 3000); }
+      if (stopI === 3) { ended = true; running = false; setTimeout(() => ctx.win('miami'), 900); return; }
+      stopI++; phase = 'drive'; info(); refreshHint();
+    } })));
+  }
   const seat = new V3();
   const seatPos = () => seat.set(x - 0.2, roadY(x) + 1.55, LANE + 0.45);
   const intro = withIntro(ctx, opt, [
@@ -1279,11 +1308,12 @@ function miami(ctx, opt) {
     ctx.sfx('shutter');
     const f = document.getElementById('fade'); f.classList.add('on'); setTimeout(() => f.classList.remove('on'), 90);
     if (shots.has(sp)) { ctx.toast(`📸 Ya tienes foto de ${SP[sp]}`, 1500); return; }
+    if (navigator.vibrate) navigator.vibrate(40);
     shots.add(sp); info(); ctx.sfx('pickup'); ctx.burst(obj.getWorldPosition(_v), [0xffffff, 0xffd700], 30, 1.5);
     ctx.toast(`📸 ¡${SP[sp]}! ${FACT[sp]}`, 5000);
   }
   const pickA = p => { const h = p.ray.intersectObjects(animals.filter(a => a.parent && a.parent.visible !== false), false); return h.length ? h[0].object : null; };
-  const refreshHint = () => ctx.hint('📸 ' + (ctx.isHand() ? 'Señala los animales con tu índice para fotografiarlos' : 'Toca los animales para fotografiarlos') + (ctx.gyroOn() ? ' · gira el celular para mirar a los lados' : ' · arrastra para mirar'));
+  const refreshHint = () => ctx.hint(phase === 'drive' ? `🚗 Viajando a ${STOPS[stopI].name}… mira el paisaje` + (ctx.gyroOn() ? ' girando el celular' : ' arrastrando el dedo') : `📍 ${STOPS[stopI].tip}`);
   return {
     look: true, camLock: !opt.quick, dwellTime: 0.4, refreshHint, _dbg: { setX: v => (x = v), animals },
     start() { running = true; this.camLock = false; info(); refreshHint(); },
@@ -1294,10 +1324,20 @@ function miami(ctx, opt) {
       waters.forEach(w => (w.userData.uT.value = t));
       if (intro.on) { intro.update(dt); if (!intro.on) this.camLock = false; }
       if (running && !ended) {
-        x = Math.min(END, x + dt * 8.5);
-        const zi = x < 85 ? 0 : x < 225 ? 1 : x < 380 ? 2 : 3;
-        if (zi !== zoneIdx) { zoneIdx = zi; ctx.toast(ZFACT[zi], 6500); }
-        if (x >= END && !launched) { launched = 0.001; ctx.hint('🚀 ¡Mira a la izquierda! Despegue en 5…'); ctx.sfx('charge'); }
+        if (phase === 'drive') { const tx = STOPS[stopI].x; x = Math.min(tx, x + dt * 9); if (x >= tx) arrive(); }
+        else if (phase === 'stop') {
+          stopT += dt;
+          if (stopI < 3 && !left().length) { phase = 'wait'; ctx.hint('✅ ¡Fotos listas! Ahora una pregunta…'); setTimeout(() => alive && ask(), 1500); }
+          else if (stopI < 3 && stopT > 35 && !this['tip' + stopI]) { this['tip' + stopI] = 1; ctx.toast('💡 Gira el celular (o arrastra) hacia donde apunta la flecha amarilla y toca el animal.', 5000); }
+        }
+        // flecha que guía hacia el animal que falta
+        let best = null, bd = 1e9;
+        if (phase === 'stop' && left().length) for (const a of animals) if (left().includes(a.userData.sp)) { a.getWorldPosition(_w); const d = _w.distanceToSquared(camera.position); if (d < bd) { bd = d; best = _w.clone(); } }
+        if (best) {
+          const loc = camera.worldToLocal(best.clone()), pr = best.clone().project(camera);
+          if (loc.z < 0 && Math.abs(pr.x) < 0.85 && Math.abs(pr.y) < 0.85) arrow.classList.add('hidden');
+          else { const ang = Math.atan2(loc.y, loc.x), Rr = Math.min(innerWidth, innerHeight) / 2 - 50; arrow.classList.remove('hidden'); arrow.style.transform = `translate(${innerWidth / 2 + Math.cos(ang) * Rr}px,${innerHeight / 2 - Math.sin(ang) * Rr}px) rotate(${-ang}rad)`; }
+        } else arrow.classList.add('hidden');
       }
       if (!intro.on) camera.position.copy(seatPos());
       const shake = launched > 5 ? Math.min(1, (launched - 5) * 0.5) * Math.max(0, 1 - (launched - 9) * 0.3) : 0;
@@ -1313,7 +1353,7 @@ function miami(ctx, opt) {
         traffic.forEach(c => { c.position.x += c.userData.sp * dt; if (c.position.x < -100) c.position.x = 80; });
         palms.forEach(p => { p.userData.crown.rotation.z = Math.sin(t * 0.9 + p.userData.ph) * 0.05; });
         towers.forEach((tw, i) => { tw.userData.flag.rotation.y = Math.sin(t * 4 + i) * 0.4; });
-        turtles.forEach((tt, i) => { tt.position.z -= dt * 0.12; if (tt.position.z < -13) tt.position.z = -7; tt.userData.fl.forEach((f, k) => (f.rotation.y = Math.sin(t * 2 + k) * 0.4)); });
+        turtles.forEach((tt, i) => { tt.position.z -= dt * 0.12; if (tt.position.z < -12) tt.position.z = -2; tt.userData.fl.forEach((f, k) => (f.rotation.y = Math.sin(t * 2 + k) * 0.4)); });
       }
       birds.forEach(b => { if (!b.parent.visible) return; const u = b.userData, a = t * u.sp + u.ph; b.position.set(u.cx + Math.cos(a) * u.r, u.h + Math.sin(t * 0.7 + u.ph) * 1.2, u.cz + Math.sin(a) * u.r); b.rotation.y = Math.atan2(-Math.sin(a) * u.sp, Math.cos(a) * u.sp); });
       if (Z2.visible) {
@@ -1337,15 +1377,11 @@ function miami(ctx, opt) {
         }
         if (L > 5.5) { const k = L - 5.5; rocket.position.y = 2 + k * k * 3.2; }
         for (let i = smoke.length - 1; i >= 0; i--) { const s = smoke[i]; s.position.addScaledVector(s.userData.v, dt); s.scale.multiplyScalar(1 + dt * 0.35); if (s.scale.x > 45) { Z4.remove(s); smoke.splice(i, 1); } }
-        if (L > 12 && !ended) {
-          ended = true; running = false;
-          if (shots.size >= 4) ctx.win('miami');
-          else ctx.lose(`Tomaste ${shots.size} de 5 fotos de fauna. Necesitas al menos 4. Consejo: gira el celular a ambos lados del camino.`);
-        }
+        if (L > 12 && phase === 'stop') ask();
       }
       if (running && !launched) { infoT += dt; if (infoT > 0.5) { infoT = 0; info(); } }
     },
-    dispose() { alive = false; running = false; restoreEnv(); mixers.length = 0; }
+    dispose() { alive = false; running = false; restoreEnv(); mixers.length = 0; arrow.classList.add('hidden'); }
   };
 }
 
@@ -1492,9 +1528,9 @@ function heat(ctx, opt) {
   // Jugadores con proporciones atléticas reales, árbitro y bailarinas (modelo con animación capturada)
   const mixers = [];
   const P = person({ h: 1.98, athlete: true, top: 0xc8102e, bottom: 0xc8102e, shorts: true, longShorts: true, shoe: 0xffffff, num: '26', hairStyle: 'buzz', band: 0x111111, skin: 0x6b4430 });
-  P.p.position.set(2.6, 0, -2.4); P.p.rotation.y = Math.atan2(-2.6, 2.4); g.add(P.p);
+  P.p.position.set(5.2, 0, -3.8); P.p.rotation.y = Math.atan2(-5.2, 3.8); g.add(P.p);
   const R = person({ h: 2.03, athlete: true, top: 0x111111, bottom: 0x111111, shorts: true, longShorts: true, shoe: 0x111111, num: '7', hairStyle: 'short', skin: 0xc99a74 });
-  R.p.position.set(-2.3, 0, -2.9); R.p.rotation.y = Math.atan2(2.3, 2.9); g.add(R.p);
+  R.p.position.set(-5.2, 0, -3.8); R.p.rotation.y = Math.atan2(5.2, 3.8); g.add(R.p);
   const ref = person({ h: 1.8, topMat: stripedMat('#ffffff', '#111111', 12), bottom: 0x111111, sleeves: true, shoe: 0x111111, hairStyle: 'bald' });
   ref.p.position.set(-6.9, 0, 0.6); ref.p.rotation.y = Math.PI / 2; g.add(ref.p);
   for (const [x, z, ry] of [[-4.6, -6.9, 0], [4.6, -6.9, 0], [-8.4, 4, Math.PI / 2], [8.4, 4, -Math.PI / 2]]) spawnGLB('Michelle.glb', g, mixers, { x, z, ry });
@@ -1511,12 +1547,18 @@ function heat(ctx, opt) {
   const st = { mode: 'rest', v: new V3(), t: 0, scored: false, fb: '', inNet: 0, lastBounce: 0 };
   let running = false, alive = true, baskets = 0, pts = 0, shots = 0, cel = 0, netK = 0, netW = 0;
   const _d = new V3(), _q = new V3(), _n = new V3();
-  const info = () => ctx.info(`🏀 Canastas ${baskets}/3 · Puntos ${pts} · Tiros ${shots}`);
+  const info = () => ctx.info(`🏀 Canastas ${baskets}/5 · Puntos ${pts} · Tiros ${shots}`);
+  const SPOTS = [[0, 0, 'Tiro libre'], [-3.6, -1.2, 'Ala izquierda'], [3.6, -1.2, 'Ala derecha'], [0, 2.2, 'Frente al aro, más lejos'], [-2, 1.2, 'Diagonal izquierda']];
+  const spot = new V3(0, 1.6, 0), spotFrom = new V3(0, 1.6, 0); let spotT = 1;
+  function moveSpot(i) {
+    const S2 = SPOTS[i % SPOTS.length]; spotFrom.copy(camera.position); spot.set(S2[0], 1.6, S2[1]); spotT = 0;
+    ctx.toast(`📍 Nueva posición: ${S2[2]}`, 2500);
+  }
   function drawBoard() {
     const c = sbTex.userData.g, w = 512, h = 200;
     c.fillStyle = '#050505'; c.fillRect(0, 0, w, h); c.strokeStyle = '#c8102e'; c.lineWidth = 8; c.strokeRect(4, 4, w - 8, h - 8);
     c.textAlign = 'center'; c.fillStyle = '#ff3344'; c.font = 'bold 34px monospace'; c.fillText('PUNTOS    CANASTAS', w / 2, 50);
-    c.font = 'bold 100px monospace'; c.fillStyle = '#ffd54a'; c.fillText(String(pts).padStart(2, '0'), 140, 160); c.fillText(`${baskets}/3`, 370, 160);
+    c.font = 'bold 100px monospace'; c.fillStyle = '#ffd54a'; c.fillText(String(pts).padStart(2, '0'), 140, 160); c.fillText(`${baskets}/5`, 370, 160);
     sbTex.needsUpdate = true;
   }
   drawBoard();
@@ -1539,7 +1581,8 @@ function heat(ctx, opt) {
     st.scored = true; st.inNet = 0.5; baskets++; pts += 2; cel = 2; netK = 1; info(); drawBoard();
     ctx.sfx('swish'); setTimeout(() => { ctx.sfx('crowd'); ctx.sfx('score'); }, 120);
     ctx.burst(RIM, [0xff2a2a, 0xffffff, 0xf9a01b], 80, 2.5);
-    if (baskets >= 3) { running = false; setTimeout(() => ctx.win('heat'), 1300); }
+    if (baskets >= 5) { running = false; setTimeout(() => ctx.win('heat'), 1300); }
+    else setTimeout(() => { if (alive) moveSpot(baskets); }, 1600);
   }
   const intro = withIntro(ctx, opt, [
     { t: 0, p: [6, 9, 18], yaw: 0.35, pitch: -0.3 },
@@ -1568,7 +1611,7 @@ function heat(ctx, opt) {
       g.children.forEach(o => { if (o.name === 'banner') o.rotation.y = Math.sin(t * 0.8 + o.userData.ph) * 0.06; });
       // rival en defensa y árbitro
       R.legs.forEach(l => { l.th.rotation.x = -0.5; l.kn.rotation.x = 0.75; }); R.hips.position.y = R.leg - 0.16;
-      R.p.position.x = -2.3 + Math.sin(t * 1.3) * 0.5; R.arms.forEach(a => { a.sh.rotation.z = a.s * (0.9 + Math.sin(t * 2) * 0.1); a.el.rotation.x = -0.3; });
+      R.p.position.x = -5.2 + Math.sin(t * 1.3) * 0.4; R.arms.forEach(a => { a.sh.rotation.z = a.s * (0.9 + Math.sin(t * 2) * 0.1); a.el.rotation.x = -0.3; });
       idleAnim(ref, t);
       // compañero: dribla y celebra
       const dr = Math.abs(Math.sin(t * 3.2));
@@ -1582,6 +1625,11 @@ function heat(ctx, opt) {
         P.arms[0].sh.rotation.x = -0.3; P.arms[0].el.rotation.x = -0.6;
         P.arms[1].sh.rotation.x = -0.5 - dr * 0.3; P.arms[1].el.rotation.x = -0.4;
         ball2.position.copy(P.p.localToWorld(_v.set(0.32, BR + (1 - dr) * 0.72, 0.35)));
+      }
+      // cambio de posición de tiro
+      if (spotT < 1 && !intro.on) {
+        spotT = Math.min(1, spotT + dt * 0.8); camera.position.lerpVectors(spotFrom, spot, smooth(spotT));
+        if (spotT >= 1) { const d = _u.copy(RIM).sub(spot); ctx.lookReset(Math.atan2(-d.x, -d.z), 0.15); }
       }
       // red
       netK = Math.max(0, netK - dt * 1.6); netW += dt * 18;
@@ -1627,20 +1675,20 @@ export const GAMES = {
   orlando: {
     short: 'Orlando', title: '🏰 Orlando — Duelo mágico', winMsg: '¡Has conquistado Orlando!', create: orlando,
     how: h => h
-      ? 'Tu varita sigue tu <b>dedo índice</b>. Apunta al mago y mantén el dedo sobre él: el hechizo se lanza solo. Muestra la <b>palma abierta ✋</b> para activar 🛡️ Protego cuando veas el brillo verde. Cambia de hechizo dejando el dedo quieto sobre los botones. <b>Acierta 3 ataques.</b>'
-      : 'Toca al mago para lanzarle el hechizo (o usa ✨ Lanzar). 🔴 Expelliarmus lo desarma y ⚡ Stupefy lo aturde. Cuando veas el brillo verde, elige 🛡️ Protego y lánzalo. Gira el celular o arrastra para mirar el parque. <b>Acierta 3 ataques.</b>',
+      ? 'Tu varita sigue tu <b>dedo índice</b>. Apunta al mago y mantén el dedo sobre él: el hechizo se lanza solo. Muestra la <b>palma abierta ✋</b> para activar 🛡️ Protego cuando veas el brillo verde. Cambia de hechizo dejando el dedo quieto sobre los botones. <b>Acierta 6 ataques</b> (a la mitad el mago se enfurece y ataca más rápido).'
+      : 'Toca al mago para lanzarle el hechizo (o usa ✨ Lanzar). 🔴 Expelliarmus lo desarma y ⚡ Stupefy lo aturde. Cuando veas el brillo verde, elige 🛡️ Protego y lánzalo. Gira el celular o arrastra para mirar el parque. <b>Acierta 6 ataques</b> (a la mitad el mago se enfurece y ataca más rápido).',
     fact: 'The Wizarding World of Harry Potter abrió su zona de Hogsmeade en Islands of Adventure en 2010 y Diagon Alley en Universal Studios Florida en 2014. El tren Hogwarts Express conecta ambos parques.'
   },
   miami: {
     short: 'Tour Florida', title: '🌴 Miami y Florida — Road Trip', winMsg: '¡Has recorrido Florida!', create: miami,
-    how: h => 'Vas de copiloto en un descapotable por toda Florida: <b>Miami Beach → Everglades → Cayos → Cabo Cañaveral</b>. Gira el celular (o arrastra) para mirar a los lados y ' + (h ? '<b>señala con tu índice</b>' : '<b>toca</b>') + ' los animales para fotografiarlos: 🐢 tortuga, 🦜 loro, 🐊 caimán, 🦩 flamenco y 🐬 delfín. Consigue <b>al menos 4 fotos</b> antes del despegue del cohete. 🚀',
+    how: h => 'Viajas de copiloto en un descapotable con <b>4 paradas</b>: Miami Beach → Everglades → Cayos → Cabo Cañaveral.<br>1️⃣ En cada parada el auto se detiene. 2️⃣ Sigue la <b>flecha amarilla ➤</b> girando el celular (o arrastrando). 3️⃣ ' + (h ? '<b>Señala con tu índice</b>' : '<b>Toca</b>') + ' el animal para tomarle la foto 📸. 4️⃣ Responde una pregunta sobre Florida y el viaje sigue.<br>Fotografía 🐢 🦜 🐊 🦩 🐬 y llega a ver el despegue del cohete 🚀.',
     fact: 'Florida es conocida como “The Sunshine State” (el Estado del Sol). Recorriste Miami Beach, los Everglades, la Overseas Highway de los Cayos y la Costa Espacial.'
   },
   heat: {
     short: 'Miami Heat', title: '🏀 Miami Heat — Basketball AR', winMsg: '¡Eres una estrella del Miami Heat!', create: heat,
     how: h => (h
       ? 'Estás en la línea de tiro libre. El balón sigue tu <b>dedo índice</b>: súbelo rápido hacia la canasta para lanzar.'
-      : 'Estás en la línea de tiro libre. Pon el dedo en la pantalla y <b>desliza hacia arriba</b>, hacia la canasta. La velocidad del deslizamiento es la fuerza y la inclinación es la dirección.') + ' Gira el celular para ver la arena. <b>Encesta 3 balones.</b>',
+      : 'Empiezas en la línea de tiro libre. Pon el dedo en la pantalla y <b>desliza hacia arriba</b>, hacia la canasta. La velocidad del deslizamiento es la fuerza y la inclinación es la dirección.') + ' Gira el celular para ver la arena. <b>Encesta 5 balones</b>: después de cada canasta cambias de posición (tiro libre, alas y más lejos).',
     fact: 'El Miami Heat entró a la NBA en 1988 como equipo de expansión y ha ganado tres campeonatos: 2006, 2012 y 2013.'
   }
 };
