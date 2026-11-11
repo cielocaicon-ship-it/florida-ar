@@ -9,8 +9,8 @@ body.nocam{background:radial-gradient(circle at 50% 30%,#2e3f99,#0b1026 70%)}
 body.xr #cam{display:none}
 #touch{position:absolute;inset:0;touch-action:none}
 #handsLayer{position:absolute;inset:0;pointer-events:none}
-#cursor{position:absolute;left:-22px;top:-22px;width:44px;height:44px;border:4px solid #ffd54a;border-radius:50%;opacity:0;pointer-events:none;box-shadow:0 0 16px #ffd54a;transition:background .1s,opacity .2s}
-#cursor.pinch{background:rgba(255,213,74,.65);border-color:#fff}
+#cursor{--p:0;position:absolute;left:-26px;top:-26px;width:52px;height:52px;border-radius:50%;opacity:0;pointer-events:none;z-index:6;transition:opacity .2s;background:conic-gradient(#ffd54a calc(var(--p)*1turn),rgba(255,255,255,.25) 0);-webkit-mask:radial-gradient(circle,transparent 17px,#000 18px);mask:radial-gradient(circle,transparent 17px,#000 18px);filter:drop-shadow(0 0 6px #ffd54a)}
+#cursor.pinch{background:#fff}
 #crosshair{position:absolute;left:0;top:0;width:36px;height:36px;margin:-18px 0 0 -18px;border:2px solid #fff;border-radius:50%;pointer-events:none;opacity:.85}
 #crosshair::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;background:#fff;border-radius:50%}
 #flash{position:absolute;inset:0;background:rgba(255,0,50,.45);opacity:0;pointer-events:none;transition:opacity .4s}
@@ -64,3 +64,7 @@ h2{font-size:24px;font-weight:900;margin-bottom:6px}
   #info{top:70px}
   .sp{max-width:170px}
 }
+#fade{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .28s;z-index:4}
+#fade.on{opacity:1}
+#arrow{position:absolute;left:0;top:0;width:54px;height:54px;margin:-27px 0 0 -27px;display:flex;align-items:center;justify-content:center;font-size:34px;color:#ffd54a;text-shadow:0 0 10px #000,0 0 18px #ff9d00;pointer-events:none;animation:pulse 1s infinite alternate}
+@keyframes pulse{to{filter:brightness(1.6)}}
