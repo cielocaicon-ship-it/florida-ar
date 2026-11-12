@@ -1236,21 +1236,15 @@ function miami(ctx, opt) {
   const smokeM = temp(new THREE.SpriteMaterial({ map: glowTex(), color: 0xd8d8d8, transparent: true, opacity: 0.85, depthWrite: false }));
   const flameS = glow(0xffb040, 1, 0); flameS.position.set(0, -2, 0); rocket.add(flameS);
 
-  /* ----- Auto descapotable (vas de copiloto) ----- */
+  /* ----- Plataforma abierta del trolley turístico: nada te tapa la vista al girar ----- */
   const carG = new THREE.Group(); g.add(carG);
-  const paint = M(0xd8102e, { metalness: 0.6, roughness: 0.22 }), chrome = M(0xdddddd, { metalness: 1, roughness: 0.15 }), leather = M(0xf1e6d0, { roughness: 0.7 });
-  add(carG, box(4.4, 0.7, 2), paint, 0, 0.55, 0);
-  add(carG, box(1.6, 0.25, 1.9), paint, 1.6, 0.98, 0);
-  add(carG, box(0.35, 0.28, 1.9), M(0x2a2a2e, { roughness: 0.6 }), 0.8, 1.0, 0);
-  for (const z of [-0.5, -0.25]) add(carG, new THREE.CircleGeometry(0.06, 16), M(0xffffff, { emissive: 0x88bbff, emissiveIntensity: 0.6 }), 0.62, 1.08, z, false).rotation.y = -Math.PI / 2;
-  add(carG, box(0.06, 0.55, 1.85), temp(new THREE.MeshStandardMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.25, roughness: 0.05, metalness: 0.3 })), 0.95, 1.5, 0, false).rotation.z = -0.35;
-  add(carG, box(0.06, 0.06, 1.95), chrome, 1.05, 1.78, 0);
-  for (const z of [-0.45, 0.45]) { add(carG, box(0.7, 0.2, 0.7), leather, -0.25, 0.9, z); add(carG, box(0.15, 0.75, 0.7), leather, -0.6, 1.25, z); }
-  const wheel = add(carG, new THREE.TorusGeometry(0.19, 0.025, 8, 24), M(0x111111), 0.52, 1.25, -0.45); wheel.rotation.y = Math.PI / 2; wheel.rotation.x = 0.4;
-  const driver = person({ top: 0xffffff, bottom: 0x2a3550, sleeves: true, hairStyle: 'buzz' }); driver.p.position.set(-0.3, 0.9 - driver.leg, -0.45); driver.p.rotation.y = -Math.PI / 2 * -1; driver.p.rotation.y = Math.PI / 2;
-  driver.legs.forEach(l => { l.th.rotation.x = -1.5; l.kn.rotation.x = 1.4; }); driver.arms.forEach(a => { a.sh.rotation.x = -1.1; a.el.rotation.x = -0.4; }); carG.add(driver.p);
-  for (const wx of [-1.4, 1.4]) for (const wz of [-0.95, 0.95]) { const w = add(carG, cyl(0.38, 0.38, 0.3, 20), M(0x111111), wx, 0.38, wz); w.rotation.x = Math.PI / 2; }
-
+  const paint = M(0xd8102e, { metalness: 0.5, roughness: 0.3 }), chrome = M(0xdddddd, { metalness: 1, roughness: 0.2 });
+  add(carG, box(5, 0.35, 2.6), paint, 0, 0.55, 0);
+  add(carG, box(5, 0.04, 2.5), M(0x8a6a48, { roughness: 0.8 }), 0, 0.75, 0, false);
+  for (const z of [-1.25, 1.25]) add(carG, box(5, 0.05, 0.05), chrome, 0, 1.15, z, false);
+  for (const xx of [-2.45, 2.45]) add(carG, box(0.05, 0.05, 2.5), chrome, xx, 1.15, 0, false);
+  for (const xx of [-2.4, -0.8, 0.8, 2.4]) for (const z of [-1.25, 1.25]) add(carG, cyl(0.025, 0.025, 0.4, 6), chrome, xx, 0.95, z, false);
+  for (const wx of [-1.7, 1.7]) for (const wz of [-1.1, 1.1]) { const w = add(carG, cyl(0.4, 0.4, 0.3, 20), M(0x111111), wx, 0.4, wz); w.rotation.x = Math.PI / 2; }
   let alive = true, running = false, x = START, launched = 0, ended = false, zoneIdx = -1, infoT = 0, waveT = 0;
   const shots = new Set();
   const SP = { '🐢': 'Tortuga marina', '🦜': 'Loro silvestre', '🐊': 'Caimán americano', '🦩': 'Flamenco americano', '🐬': 'Delfín nariz de botella' };
@@ -1298,11 +1292,11 @@ function miami(ctx, opt) {
     } })));
   }
   const seat = new V3();
-  const seatPos = () => seat.set(x - 0.2, roadY(x) + 1.55, LANE + 0.45);
+  const seatPos = () => seat.set(x, roadY(x) + 2.35, LANE);
   const intro = withIntro(ctx, opt, [
     { t: 0, p: [-95, 30, -30], yaw: -2.2, pitch: -0.4 },
     { t: 3.8, p: [START - 10, 6, 6], yaw: -1.8, pitch: -0.2 },
-    { t: 5.5, p: [START - 0.2, 1.55, LANE + 0.45], yaw: -Math.PI / 2, pitch: -0.05 }
+    { t: 5.5, p: [START, 2.35, LANE], yaw: -Math.PI / 2, pitch: -0.05 }
   ], -Math.PI / 2, -0.05);
   function photo(sp, obj) {
     ctx.sfx('shutter');
@@ -1681,7 +1675,7 @@ export const GAMES = {
   },
   miami: {
     short: 'Tour Florida', title: '🌴 Miami y Florida — Road Trip', winMsg: '¡Has recorrido Florida!', create: miami,
-    how: h => 'Viajas de copiloto en un descapotable con <b>4 paradas</b>: Miami Beach → Everglades → Cayos → Cabo Cañaveral.<br>1️⃣ En cada parada el auto se detiene. 2️⃣ Sigue la <b>flecha amarilla ➤</b> girando el celular (o arrastrando). 3️⃣ ' + (h ? '<b>Señala con tu índice</b>' : '<b>Toca</b>') + ' el animal para tomarle la foto 📸. 4️⃣ Responde una pregunta sobre Florida y el viaje sigue.<br>Fotografía 🐢 🦜 🐊 🦩 🐬 y llega a ver el despegue del cohete 🚀.',
+    how: h => 'Viajas de pie en un trolley turístico abierto, así que puedes <b>girar el celular y mirar los 360°</b> como en la cancha. Hay <b>4 paradas</b>: Miami Beach → Everglades → Cayos → Cabo Cañaveral.<br>1️⃣ En cada parada el auto se detiene. 2️⃣ Sigue la <b>flecha amarilla ➤</b> girando el celular (o arrastrando). 3️⃣ ' + (h ? '<b>Señala con tu índice</b>' : '<b>Toca</b>') + ' el animal para tomarle la foto 📸. 4️⃣ Responde una pregunta sobre Florida y el viaje sigue.<br>Fotografía 🐢 🦜 🐊 🦩 🐬 y llega a ver el despegue del cohete 🚀.',
     fact: 'Florida es conocida como “The Sunshine State” (el Estado del Sol). Recorriste Miami Beach, los Everglades, la Overseas Highway de los Cayos y la Costa Espacial.'
   },
   heat: {
