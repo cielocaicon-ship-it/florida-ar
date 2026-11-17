@@ -279,22 +279,27 @@ let footOn = false; const fh = []; let kickCD = 0, footSeen = 0, footWarned = fa
 const fp = { x: innerWidth / 2, y: innerHeight / 2 };
 async function beginFoot(side) {
   foot.side = side; if (handsOn) { stopHands(); handsOn = false; hand.present = false; }
-  toast('Cargando detector de pies…', 15000);
+  // en celular se usa la cámara frontal: apoyas el teléfono y te alejas para que se vea tu cuerpo completo
+  if (isMobile) { try { await startCamera('user'); } catch (e) {} }
+  toast('Cargando detector de pies…', 15000); $('footstat').classList.remove('hidden'); $('footstat').textContent = '⏳ Cargando detector…';
   try {
     await startFoot(video, onFoot); footOn = true; footSeen = performance.now(); footWarned = false; $('footbar').classList.remove('hidden');
-    toast('🦶 Apunta la cámara a tus pies: verás un punto amarillo en la punta del zapato. Quédate quieto y luego patea.', 6000);
+    card('🦶 Cómo patear con tu pie', `<p>1️⃣ <b>Apoya el celular</b> en el piso o en una silla, con la pantalla hacia ti.<br>2️⃣ <b>Aléjate 2 o 3 pasos</b> hasta que la cámara vea <b>todo tu cuerpo</b>, incluidos los zapatos (con buena luz).<br>3️⃣ Verás un <b>punto amarillo</b> en la punta de tu zapato.<br>4️⃣ Quédate quieto un segundo y <b>patea hacia el celular</b>. Para apuntar, patea un poco hacia la izquierda o la derecha.</p>`, [{ label: '¡Entendido!', primary: true }]);
   } catch (e) { console.warn(e); toast('No se pudo activar el detector de pies. Juega deslizando el dedo.', 5000); }
   S.scene && S.scene.start();
 }
 function endFoot() {
+  $('footstat').classList.add('hidden');
   if (!footOn) return; footOn = false; stopFoot(); $('footbar').classList.add('hidden'); $('cursor').style.opacity = 0;
+  if (isMobile && S.cam) startCamera('environment').catch(() => {});
   if (S.mode === 'hand' && !handsOn) startHands(video, onHand).then(() => (handsOn = true)).catch(() => {});
 }
 function onFoot(r) {
   if (!footOn) return;
   const cur = $('cursor'), now = performance.now();
-  if (!r.present) { cur.style.opacity = 0; return; }
-  footSeen = now;
+  const fs = $('footstat');
+  if (!r.present) { cur.style.opacity = 0; fs.textContent = r.body ? '🟡 Veo tu cuerpo, pero no tus zapatos: aléjate un poco' : '🔴 No te veo: aléjate hasta que se vea todo tu cuerpo'; return; }
+  footSeen = now; fs.textContent = '🟢 Pie detectado: quédate quieto y patea';
   const [tx, ty] = toScreen(r.x, r.y, 1);
   const a = THREE.MathUtils.clamp(0.35 + Math.hypot(tx - fp.x, ty - fp.y) / 160, 0.35, 0.9);
   fp.x += (tx - fp.x) * a; fp.y += (ty - fp.y) * a;
@@ -303,10 +308,10 @@ function onFoot(r) {
   const seg = (t0, t1) => { const A = fh.filter(q => now - q.t <= t0 && now - q.t >= t1); if (A.length < 2) return null; const p = A[0], q = A[A.length - 1], dt = Math.max((q.t - p.t) / 1000, 0.03); return { x: (q.x - p.x) / dt, y: (q.y - p.y) / dt }; };
   const v = seg(140, 0), before = seg(800, 250);
   if (!v || !before) return;
-  const sp = Math.hypot(v.x, v.y), calm = Math.hypot(before.x, before.y) < 0.9; // patada = movimiento rápido después de estar quieto
-  if (now > kickCD && sp > 2.2 && calm && S.scene && S.scene.kick && !blocked()) {
+  const sp = Math.hypot(v.x, v.y), calm = Math.hypot(before.x, before.y) < 1.3; // patada = movimiento rápido después de estar quieto
+  if (now > kickCD && sp > 1.5 && calm && S.scene && S.scene.kick && !blocked()) {
     kickCD = now + 1800; if (navigator.vibrate) navigator.vibrate(30);
-    S.scene.kick({ x: v.x, y: sp });
+    S.scene.kick({ x: v.x, y: THREE.MathUtils.clamp(sp * 1.1, 2.4, 3.6) }); $('footstat').textContent = '⚡ ¡Patada!';
   }
 }
 setInterval(() => { if (footOn && !footWarned && performance.now() - footSeen > 7000) { footWarned = true; toast('No veo tu pie 🦶 Apunta la cámara a tus zapatos con buena luz, o vuelve con ← y elige "deslizar el dedo".', 6000); } }, 2000);
@@ -385,11 +390,11 @@ function replay() { for (const k in S.stars) S.stars[k] = 0; updateStars(); ente
 
 /* ================= Cámara ================= */
 function stopCamera() { const s = video.srcObject; if (s) s.getTracks().forEach(t => t.stop()); video.srcObject = null; }
-async function startCamera() {
+async function startCamera(facing = isMobile ? 'environment' : 'user') {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('nohttps');
   stopCamera();
   const stream = await navigator.mediaDevices.getUserMedia({
-    audio: false, video: { facingMode: { ideal: isMobile ? 'environment' : 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    audio: false, video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } }
   });
   const fm = stream.getVideoTracks()[0].getSettings().facingMode;
   S.mirror = fm ? fm === 'user' : !isMobile;

@@ -1836,5 +1836,5 @@ export const GAMES = {
   }
 };
 
-export { M, B, temp, keep, add, box, cyl, sph, cone, cap, smooth, easeOut, rnd, pick, canvasTex, rep, glow, glowTex, textTex, label, sky, lightRig, envFromSky, withIntro,
+export { turtle, dolphin, M, B, temp, keep, add, box, cyl, sph, cone, cap, smooth, easeOut, rnd, pick, canvasTex, rep, glow, glowTex, textTex, label, sky, lightRig, envFromSky, withIntro,
   person, walkAnim, clapAnim, idleAnim, stripedMat, stripesTex, waterMat, palm, decoBuilding, car, lifeguard, spawnGLB, ballMat, SKINS, Q };

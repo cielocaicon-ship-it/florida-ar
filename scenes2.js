@@ -2,9 +2,9 @@
 import * as THREE from 'three';
 import {
   M, B, temp, add, box, cyl, sph, cone, cap, smooth, rnd, pick, canvasTex, rep, glow, textTex, label, sky, lightRig, envFromSky, withIntro,
-  person, clapAnim, idleAnim, stripedMat, stripesTex, waterMat, palm, decoBuilding, car, lifeguard, disposeTree, SKINS, Q
+  person, clapAnim, idleAnim, stripedMat, stripesTex, waterMat, palm, decoBuilding, car, lifeguard, disposeTree, SKINS, Q, spawnGLB, turtle, dolphin, starMesh
 } from './scenes.js';
-const V3 = THREE.Vector3, clamp = THREE.MathUtils.clamp, lerp = THREE.MathUtils.lerp;
+const V3 = THREE.Vector3, V2 = THREE.Vector2, clamp = THREE.MathUtils.clamp, lerp = THREE.MathUtils.lerp;
 const _v = new V3(), _w = new V3();
 
 /* ---------- utilidades compartidas ---------- */
@@ -209,105 +209,116 @@ function heroes(ctx, opt) {
   const seats = new THREE.Group(); tw.add(seats); add(seats, cyl(2.4, 2.4, 1.2, 16), M(0xffd23a, { metalness: 0.4, roughness: 0.4 }), 0, 0, 0);
   const arch = add(g, new THREE.TorusGeometry(6, 0.6, 12, 40, Math.PI), M(0xd4202a, { metalness: 0.5, roughness: 0.3 }), 0, 0, 12); arch.rotation.y = Math.PI;
   add(g, new THREE.PlaneGeometry(9, 1.6), temp(new THREE.MeshStandardMaterial({ map: textTex('ISLA DE HÉROES', 1024, 180, '#111a4a', '#ffe14d', 'bold 96px Impact,system-ui'), emissive: 0x222200, side: THREE.DoubleSide })), 0, 7, 12, false);
-  // drones enemigos
-  const drones = Array.from({ length: 5 }, (_, i) => { const d = drone(); d.userData = { ...d.userData, a: i / 5 * Math.PI * 2 - Math.PI / 2, r: rnd(9, 14), h: rnd(3, 6.5), sp: rnd(0.12, 0.22) * (i % 2 ? 1 : -1), alive: true, dead: 0 }; g.add(d); return d; });
-  // armas: vista previa y arma en la mano
-  const shelf = new THREE.Group(); shelf.position.set(0, -0.03, -0.75); shelf.visible = false; camera.add(shelf);
-  const picks = WEAPONS.map((w, i) => { const h = new THREE.Group(); h.position.x = (i - 1) * 0.16; h.scale.setScalar(0.42); shelf.add(h); h.add(weaponModel(i)); add(h, box(0.7, 0.8, 0.3), temp(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })), 0, 0.15, 0, false).userData.wi = i; h.add(glow(w.col, 0.5, 0.4)); return h; });
-  const hand = new THREE.Group(); camera.add(hand);
-  let wi = -1, held = null, choosing = false, running = false, killed = 0, cd = 0, kick = 0, draw = 0, drawing = false, hover = -1;
-  const bolts = [], arrows = [];
-  const sh = { state: 'held', path: [], t: 0, obj: null };
-  const info = () => ctx.info(`🎯 Drones ${killed}/5 · ${wi >= 0 ? WEAPONS[wi].name : 'elige arma'}`);
-  const pickW = p => { const h = p.ray.intersectObjects(picks, true).find(o => o.object.userData.wi !== undefined); return h ? h.object.userData.wi : null; };
-  const aimAt = p => { // dron más cercano al rayo (ayuda de puntería) o punto lejano
-    let best = null, bd = 2.6 * 2.6; for (const d of drones) if (d.userData.alive) { const q = p.ray.ray.distanceSqToPoint(d.position); if (q < bd) { bd = q; best = d; } }
-    return best;
-  };
-  function destroy(d) {
-    if (!d.userData.alive) return; d.userData.alive = false; d.userData.dead = 0.001; killed++; info(); ctx.sfx('hit');
-    ctx.burst(d.position, [0xffa020, 0xff3030, 0xffffff, 0x7fd8ff], 70, 3);
-    if (killed >= 5) { running = false; setTimeout(() => ctx.win('heroes'), 1300); }
+  // drones enemigos: aparecen de uno en uno FRENTE a ti y se marcan con un aro rojo
+  const ringT = canvasTex(128, 128, (q) => { q.strokeStyle = '#ff2a2a'; q.lineWidth = 10; q.beginPath(); q.arc(64, 64, 52, 0, 7); q.stroke(); q.lineWidth = 6; for (const a of [0, 1.57, 3.14, 4.71]) { q.beginPath(); q.moveTo(64 + Math.cos(a) * 40, 64 + Math.sin(a) * 40); q.lineTo(64 + Math.cos(a) * 62, 64 + Math.sin(a) * 62); q.stroke(); } });
+  const reticle = new THREE.Sprite(temp(new THREE.SpriteMaterial({ map: ringT, transparent: true, depthTest: false }))); reticle.scale.setScalar(2.4); reticle.visible = false; reticle.renderOrder = 9; g.add(reticle);
+  const drones = Array.from({ length: 5 }, () => { const d = drone(); d.visible = false; d.userData.hp = 2; g.add(d); return d; });
+  let cur = -1, baseYaw = 0, spawnT = 0;
+  function spawn() {
+    cur++; if (cur >= 5) return;
+    const d = drones[cur], f = new V3(0, 0, -1).applyQuaternion(camera.quaternion); baseYaw = Math.atan2(f.x, -f.z);
+    d.visible = true; d.userData.hp = 2; d.userData.t0 = 0; d.scale.setScalar(0.01);
+    ctx.sfx('charge'); ctx.toast(`🚨 ¡Dron ${cur + 1} de 5 a la vista! Está marcado con el aro rojo.`, 2500); info();
+  }
+  // armas: vista previa giratoria + botones grandes para elegir
+  const shelf = new THREE.Group(); shelf.position.set(0, 0.02, -0.8); shelf.visible = false; camera.add(shelf);
+  const picks = WEAPONS.map((w, i) => { const h = new THREE.Group(); h.position.x = (i - 1) * 0.11; h.scale.setScalar(0.2); shelf.add(h); h.add(weaponModel(i)); h.add(glow(w.col, 0.5, 0.4)); return h; });
+  const bar = document.createElement('div'); bar.id = 'pickbar'; bar.className = 'hidden'; document.getElementById('app').appendChild(bar);
+  const ICON = ['⚡', '🏹', '🛡️'], VERB = ['⚡ LANZAR RAYO', '🏹 DISPARAR FLECHA', '🛡️ LANZAR ESCUDO'];
+  const hand = new THREE.Group(); hand.scale.setScalar(0.55); camera.add(hand);
+  let wi = -1, held = null, running = false, killed = 0, cd = 0, kick = 0, draw = 0, drawing = false;
+  const bolts = [], arrows = [], sh = { state: 'held', obj: null, tgt: null };
+  const info = () => ctx.info(wi < 0 ? '🦸 Elige tu arma' : `🎯 Dron ${Math.min(cur + 1, 5)}/5 · ${'❤️'.repeat(cur >= 0 && cur < 5 ? drones[cur].userData.hp : 0)} · Derribados ${killed}`);
+  function showPick() {
+    bar.innerHTML = WEAPONS.map((w, i) => `<button data-i="${i}"><b>${ICON[i]} ${w.name}</b><span>${w.note}</span></button>`).join('');
+    bar.querySelectorAll('button').forEach(b => (b.onclick = () => choose(+b.dataset.i)));
+    bar.classList.remove('hidden'); shelf.visible = true; document.body.classList.add('hasbar');
   }
   function choose(i) {
-    wi = i; choosing = false; shelf.visible = false; held = weaponModel(i); hand.add(held); running = true; info(); ctx.sfx('pickup');
-    if (i === 2) sh.obj = held;
-    ctx.toast(`${WEAPONS[i].name}: ${WEAPONS[i].note}`, 3500); refreshHint();
+    wi = i; shelf.visible = false; held = weaponModel(i); hand.add(held); if (i === 2) sh.obj = held;
+    bar.innerHTML = `<button class="attack">${VERB[i]}</button>`; bar.querySelector('button').onclick = () => fire();
+    running = true; ctx.sfx('pickup'); refreshHint(); spawn();
   }
-  function fire(p) {
+  function hitDrone(d) {
+    if (!d || !d.visible || d.userData.dead) return;
+    d.userData.hp--; ctx.burst(d.position, [0x7fd8ff, 0xffffff, 0xffa020], 30, 2); ctx.sfx('hit'); d.userData.wob = 1;
+    if (d.userData.hp <= 0) {
+      d.userData.dead = 0.001; killed++; ctx.burst(d.position, [0xffa020, 0xff3030, 0xffffff], 80, 3.2); reticle.visible = false;
+      if (killed >= 5) { running = false; bar.classList.add('hidden'); setTimeout(() => ctx.win('heroes'), 1300); }
+      else { ctx.toast(`💥 ¡Derribado! ${killed}/5`, 1600); spawnT = 1.4; }
+    }
+    info();
+  }
+  function fire() {
     if (!running || cd > 0) return;
-    const tgt = aimAt(p), tp = tgt ? tgt.position.clone() : p.ray.ray.at(25, new V3());
-    const from = held.getWorldPosition(new V3());
-    if (wi === 0) { // rayo
-      cd = 0.8; kick = 1; ctx.sfx('spell');
-      const pts = []; const n = 14; for (let k = 0; k <= n; k++) { const q = from.clone().lerp(tp, k / n); if (k && k < n) q.add(_v.set(rnd(-0.4, 0.4), rnd(-0.4, 0.4), rnd(-0.4, 0.4))); pts.push(q); }
+    const d = drones[cur]; if (!d || !d.visible || d.userData.dead) return;
+    const from = held.getWorldPosition(new V3()), tp = d.position.clone();
+    if (wi === 0) {
+      cd = 0.7; kick = 1; ctx.sfx('spell');
+      const pts = []; for (let k = 0; k <= 14; k++) { const q = from.clone().lerp(tp, k / 14); if (k && k < 14) q.add(_v.set(rnd(-0.4, 0.4), rnd(-0.4, 0.4), rnd(-0.4, 0.4))); pts.push(q); }
       const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), temp(new THREE.LineBasicMaterial({ color: 0xbfefff, transparent: true, blending: THREE.AdditiveBlending })));
-      g.add(ln); bolts.push({ ln, life: 0.25 }); ctx.burst(tp, [0x7fd8ff, 0xffffff], 20, 2);
-      if (tgt) destroy(tgt);
-    } else if (wi === 1) { // arco: tensar y soltar
-      if (drawing) return; drawing = true; draw = 0; cd = 0.9;
+      g.add(ln); bolts.push({ ln, life: 0.25 }); hitDrone(d);
+    } else if (wi === 1) {
+      if (drawing) return; drawing = true; cd = 0.9;
       setTimeout(() => {
-        drawing = false; ctx.sfx('throw');
-        const dir = tp.clone().sub(from).normalize(), m = new THREE.Group(); m.position.copy(from); g.add(m);
-        add(m, cyl(0.01, 0.01, 0.8, 6), M(0x6b4a2a), 0, 0, 0, false).rotation.x = Math.PI / 2; add(m, cone(0.03, 0.1, 8), M(0xaaaaaa, { metalness: 0.9 }), 0, 0, -0.45, false).rotation.x = -Math.PI / 2;
-        arrows.push({ m, v: dir.multiplyScalar(32), tgt, life: 2 });
-      }, 380);
-    } else if (wi === 2 && sh.state === 'held') { // escudo bumerán
-      const first = tgt; let second = null;
-      if (first) { let bd = 12 * 12; for (const d of drones) if (d !== first && d.userData.alive) { const q = d.position.distanceToSquared(first.position); if (q < bd) { bd = q; second = d; } } }
-      sh.path = [first || { position: tp }, ...(second ? [second] : []), 'back']; sh.state = 'fly'; sh.t = 0; sh.from = from.clone();
-      hand.remove(sh.obj); g.add(sh.obj); sh.obj.position.copy(from); sh.obj.scale.setScalar(1.6); ctx.sfx('throw');
+        drawing = false; if (!held) return; ctx.sfx('throw');
+        const m = new THREE.Group(); m.position.copy(held.getWorldPosition(new V3())); g.add(m);
+        add(m, cyl(0.012, 0.012, 0.8, 6), M(0x6b4a2a), 0, 0, 0, false).rotation.x = Math.PI / 2; add(m, cone(0.035, 0.1, 8), M(0xaaaaaa, { metalness: 0.9 }), 0, 0, -0.45, false).rotation.x = -Math.PI / 2;
+        arrows.push({ m, d, life: 2 });
+      }, 350);
+    } else if (sh.state === 'held') {
+      sh.state = 'go'; sh.tgt = d; hand.remove(sh.obj); g.add(sh.obj); sh.obj.position.copy(from); sh.obj.scale.setScalar(1.6); ctx.sfx('throw');
     }
   }
   const intro = withIntro(ctx, opt, [{ t: 0, p: [0, 1.6, 26], yaw: 0, pitch: 0.2 }, { t: 3.5, p: [0, 1.6, 4], yaw: 0, pitch: 0.12 }, { t: 7.5, p: [0, 1.6, 0], yaw: Math.PI * 2, pitch: 0.1 }], 0, 0.1);
-  const refreshHint = () => ctx.hint(choosing ? (ctx.isHand() ? '☝️ Señala' : '👆 Toca') + ' el arma que quieras usar'
-    : (ctx.isHand() ? '☝️ Apunta a un dron con tu índice y haz pinza (o déjalo quieto)' : '👆 Toca un dron para atacarlo') + ' · gira el celular para buscarlos');
+  const refreshHint = () => ctx.hint(wi < 0 ? 'Elige tu arma con los botones de abajo 👇'
+    : `Pulsa <b>${VERB[wi]}</b> ` + (ctx.isHand() ? 'o haz pinza' : 'o toca la pantalla') + ' para atacar al dron del <b>aro rojo</b>. Cada dron aguanta 2 golpes.');
   return {
-    look: true, camLock: !opt.quick, dwellTime: 0.45, refreshHint,
-    start() { this.camLock = false; choosing = true; shelf.visible = true; ctx.info('🦸 Elige tu arma'); refreshHint(); },
-    tap(p) {
-      if (intro.on) { intro.finish(); this.camLock = false; return; }
-      if (choosing) { const i = pickW(p); if (i !== null && i !== undefined) choose(i); return; }
-      fire(p);
-    },
-    hoverable(p) { if (choosing) return pickW(p); if (!running) return null; const d = aimAt(p); return d && d.position.distanceTo(camera.position) < 30 ? d : null; },
+    camLock: !opt.quick, dwellTime: 0.45, refreshHint,
+    start() { this.camLock = false; info(); refreshHint(); showPick(); },
+    onDown() { if (intro.on) { intro.finish(); this.camLock = false; return; } if (running) fire(); },
+    onMove() {}, onUp() {},
+    tap() { if (intro.on) { intro.finish(); this.camLock = false; return; } fire(); },
+    hoverable(p) { const d = drones[cur]; return running && d && d.visible && !d.userData.dead && p.ray.ray.distanceSqToPoint(d.position) < 4 ? d : null; },
     update(dt, t) {
       if (intro.on) { intro.update(dt); if (!intro.on) this.camLock = false; }
       seats.position.y = 4 + (Math.sin(t * 0.5) * 0.5 + 0.5) ** 3 * 38;
-      if (choosing) { hover = pickW(ctx.ptr); picks.forEach((h, i) => { h.rotation.y += dt; h.scale.setScalar(i === hover ? 0.5 : 0.42); }); if (hover !== null && hover >= 0) ctx.info(`🦸 ${WEAPONS[hover].name} — ${WEAPONS[hover].note}`); }
+      if (shelf.visible) picks.forEach(h => (h.rotation.y += dt));
       cd = Math.max(0, cd - dt); kick = Math.max(0, kick - dt * 4);
-      // arma en la mano: sigue el puntero / dedo índice
       const n = ctx.ptr.ndc, hh = 0.5 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), hw = hh * camera.aspect;
-      hand.position.set((n.x * 0.5 + 0.35) * hw, (n.y * 0.4 - 0.55) * hh, -0.5);
-      hand.lookAt(ctx.ptr.ray.ray.at(20, _w)); hand.rotateX(Math.PI / 2 - kick * 0.6);
+      hand.position.set(0.55 * hw, -0.6 * hh, -0.5);
+      const d = drones[cur];
+      hand.lookAt(d && d.visible ? d.position : ctx.ptr.ray.ray.at(20, _w)); hand.rotateX(Math.PI / 2 - kick * 0.6);
       if (held && wi === 1) { draw = drawing ? Math.min(1, draw + dt * 3) : Math.max(0, draw - dt * 8); const a = held.userData.string.geometry.attributes.position; a.setZ(1, 0.02 + draw * 0.22); a.needsUpdate = true; }
       if (held && wi === 0 && Math.random() < 0.3) ctx.burst(held.getWorldPosition(_v), 0x7fd8ff, 1, 0.5);
-      for (const d of drones) {
-        const u = d.userData;
-        if (u.dead) { u.dead += dt; d.scale.setScalar(Math.max(0.01, 1 - u.dead * 2)); d.position.y -= dt * 3; if (u.dead > 0.6) d.visible = false; continue; }
-        u.a += u.sp * dt; d.position.set(Math.cos(u.a) * u.r, u.h + Math.sin(t * 1.3 + u.r) * 0.8, Math.sin(u.a) * u.r);
-        d.lookAt(camera.position); u.rot.forEach(r => (r.rotation.y += dt * 40));
-      }
+      if (spawnT > 0) { spawnT -= dt; if (spawnT <= 0) spawn(); }
+      drones.forEach(dr => {
+        const u = dr.userData; if (!dr.visible) return;
+        u.rot.forEach(r => (r.rotation.y += dt * 40));
+        if (u.dead) { u.dead += dt; dr.scale.setScalar(Math.max(0.01, 1 - u.dead * 2)); dr.position.y -= dt * 4; if (u.dead > 0.6) dr.visible = false; return; }
+        u.t0 += dt; const dist = 12 - Math.sin(u.t0 * 0.4) * 3, ang = baseYaw + Math.sin(u.t0 * 0.7) * 0.32;
+        dr.position.set(Math.sin(ang) * dist, 3.2 + Math.sin(u.t0 * 1.3) * 0.9, -Math.cos(ang) * dist);
+        dr.scale.setScalar(Math.min(1.4, u.t0 * 2)); u.wob = Math.max(0, (u.wob || 0) - dt * 2); dr.rotation.z = Math.sin(t * 30) * 0.3 * u.wob;
+        dr.lookAt(camera.position);
+        reticle.visible = true; reticle.position.copy(dr.position); reticle.scale.setScalar(2.4 + Math.sin(t * 6) * 0.25); reticle.material.rotation += dt;
+      });
       for (let i = bolts.length - 1; i >= 0; i--) { const b = bolts[i]; b.life -= dt; b.ln.material.opacity = b.life * 4; if (b.life <= 0) { g.remove(b.ln); disposeTree(b.ln); bolts.splice(i, 1); } }
       for (let i = arrows.length - 1; i >= 0; i--) {
-        const a = arrows[i]; a.life -= dt; a.v.y -= 2 * dt;
-        if (a.tgt && a.tgt.userData.alive) { _v.copy(a.tgt.position).sub(a.m.position).normalize().multiplyScalar(32); a.v.lerp(_v, 0.12); }
-        a.m.position.addScaledVector(a.v, dt); a.m.lookAt(_w.copy(a.m.position).sub(a.v));
-        const hit = drones.find(d => d.userData.alive && d.position.distanceTo(a.m.position) < 0.9);
-        if (hit) destroy(hit);
-        if (hit || a.life <= 0) { g.remove(a.m); disposeTree(a.m); arrows.splice(i, 1); }
+        const a = arrows[i]; a.life -= dt; _v.copy(a.d.position).sub(a.m.position); const dd = _v.length();
+        a.m.position.addScaledVector(_v.normalize(), Math.min(dd, 30 * dt)); a.m.lookAt(_w.copy(a.m.position).sub(_v));
+        if (dd < 0.7 || a.life <= 0) { if (dd < 0.7) hitDrone(a.d); g.remove(a.m); disposeTree(a.m); arrows.splice(i, 1); }
       }
-      if (sh.state === 'fly') {
-        const tgt = sh.path[0], home = hand.getWorldPosition(new V3()), tp = tgt === 'back' ? home : tgt.position;
-        _v.copy(tp).sub(sh.obj.position); const d = _v.length(); sh.obj.position.addScaledVector(_v.normalize(), Math.min(d, 26 * dt)); sh.obj.rotation.z += dt * 18;
-        if (d < 0.8) {
-          if (tgt === 'back') { g.remove(sh.obj); hand.add(sh.obj); sh.obj.position.set(0, 0, 0); sh.obj.rotation.set(0, 0, 0); sh.obj.scale.setScalar(1); sh.state = 'held'; ctx.sfx('block'); }
-          else { if (tgt.userData) destroy(tgt); ctx.sfx('rim'); sh.path.shift(); }
+      if (sh.state !== 'held') {
+        const tp = sh.state === 'go' ? sh.tgt.position : hand.getWorldPosition(new V3());
+        _v.copy(tp).sub(sh.obj.position); const dd = _v.length(); sh.obj.position.addScaledVector(_v.normalize(), Math.min(dd, 24 * dt)); sh.obj.rotation.z += dt * 18;
+        if (dd < 0.8) {
+          if (sh.state === 'go') { hitDrone(sh.tgt); ctx.sfx('rim'); sh.state = 'back'; }
+          else { g.remove(sh.obj); hand.add(sh.obj); sh.obj.position.set(0, 0, 0); sh.obj.rotation.set(0, 0, 0); sh.obj.scale.setScalar(1); sh.state = 'held'; ctx.sfx('block'); }
         }
       }
-      if (running) { let best = null, bd = 1e9; for (const d of drones) if (d.userData.alive) { const q = d.position.distanceToSquared(camera.position); if (q < bd) { bd = q; best = d.position; } } guideArrow(camera, best); }
+      guideArrow(camera, d && d.visible && !d.userData.dead ? d.position : null);
     },
-    dispose() { running = false; restoreEnv(); guideArrow(camera, null); camera.remove(shelf); camera.remove(hand); disposeTree(shelf); disposeTree(hand); }
+    dispose() { running = false; restoreEnv(); guideArrow(camera, null); bar.remove(); document.body.classList.remove('hasbar'); camera.remove(shelf); camera.remove(hand); disposeTree(shelf); disposeTree(hand); }
   };
 }
 
@@ -503,12 +514,198 @@ function penalty(ctx, opt) {
   };
 }
 
+
+/* ================= MIAMI BEACH — TOUR ACUÁTICO (3 carriles, fácil de jugar) ================= */
+function boatModel() {
+  const b = new THREE.Group();
+  const hs = new THREE.Shape(); hs.moveTo(-3, -1.2); hs.lineTo(1.6, -1.2); hs.quadraticCurveTo(3, -1, 3.8, 0); hs.quadraticCurveTo(3, 1, 1.6, 1.2); hs.lineTo(-3, 1.2); hs.lineTo(-3, -1.2);
+  const hg = new THREE.ExtrudeGeometry(hs, { depth: 0.9, bevelEnabled: true, bevelSize: 0.12, bevelThickness: 0.12, bevelSegments: 2 }); hg.rotateX(-Math.PI / 2);
+  add(b, hg, M(0xffffff, { roughness: 0.35, metalness: 0.1 }), 0, -0.2, 0);
+  const sg = new THREE.ExtrudeGeometry(hs, { depth: 0.12, bevelEnabled: false }); sg.rotateX(-Math.PI / 2); add(b, sg, M(0x1d6fd8, { roughness: 0.4 }), 0, 0.42, 0, false).scale.set(1.03, 1, 1.06);
+  const dg = new THREE.ShapeGeometry(hs); dg.rotateX(-Math.PI / 2); add(b, dg, M(0x9a6a3e, { roughness: 0.8 }), 0, 0.72, 0, false).scale.set(0.95, 1, 0.92);
+  const chrome = M(0xdddddd, { metalness: 1, roughness: 0.2 });
+  for (const z of [-1.15, 1.15]) add(b, box(4.6, 0.04, 0.04), chrome, -0.6, 1.25, z, false);
+  add(b, box(0.06, 0.35, 1.6), M(0xbfe6ff, { transparent: true, opacity: 0.35, roughness: 0.05, metalness: 0.3 }), 2.2, 0.95, 0, false);
+  add(b, box(0.6, 0.9, 0.5), M(0x222222, { roughness: 0.4, metalness: 0.3 }), -3.2, 0.6, 0);
+  const c = person({ top: 0xffffff, bottom: 0x1d2f6b, sleeves: true }); c.p.position.set(-2.6, 0.72, -0.5); c.p.rotation.y = Math.PI / 2; b.add(c.p);
+  return b;
+}
+function jetModel() {
+  const j = new THREE.Group();
+  const js = new THREE.Shape(); js.moveTo(-1.5, -0.55); js.lineTo(0.8, -0.55); js.quadraticCurveTo(1.6, -0.4, 1.9, 0); js.quadraticCurveTo(1.6, 0.4, 0.8, 0.55); js.lineTo(-1.5, 0.55); js.lineTo(-1.5, -0.55);
+  const jg = new THREE.ExtrudeGeometry(js, { depth: 0.55, bevelEnabled: true, bevelSize: 0.1, bevelThickness: 0.1, bevelSegments: 2 }); jg.rotateX(-Math.PI / 2);
+  add(j, jg, M(0xffd23a, { roughness: 0.3, metalness: 0.2 }), 0, -0.1, 0);
+  add(j, box(1.3, 0.25, 0.42), M(0x1a1a1a, { roughness: 0.6 }), -0.5, 0.78, 0);
+  add(j, box(0.25, 0.45, 0.3), M(0x111111), 0.45, 0.85, 0);
+  add(j, cyl(0.025, 0.025, 0.85, 8), M(0xdddddd, { metalness: 1 }), 0.5, 1.12, 0).rotation.x = Math.PI / 2;
+  return j;
+}
+function manatee() {
+  const m = new THREE.Group(), gm = M(0x7a7d78, { roughness: 0.8 });
+  const bg = new THREE.LatheGeometry([new V2(0.001, 1.4), new V2(0.25, 1.25), new V2(0.45, 0.9), new V2(0.55, 0.2), new V2(0.45, -0.6), new V2(0.2, -1.1), new V2(0.001, -1.2)], 16); bg.rotateX(Math.PI / 2);
+  add(m, bg, gm).scale.set(1, 0.7, 1);
+  add(m, sph(0.55, 16), gm, 0, 0, -1.35).scale.set(1, 0.15, 0.8);
+  for (const s of [-1, 1]) add(m, sph(0.18, 10), gm, s * 0.45, -0.15, 0.7).scale.set(0.4, 0.2, 1);
+  return m;
+}
+function waterTour(ctx, opt) {
+  const { camera, scene } = ctx, g = new THREE.Group(); ctx.root.add(g);
+  const skyM = sky(0x1a72e0, 0xbfe9ff, 0xefe2c0); g.add(skyM);
+  const restoreEnv = envFromSky(ctx, skyM);
+  scene.fog = new THREE.Fog(0xd2ecff, 70, 240);
+  const sun = lightRig(g, { sky: 0xcbe7ff, ground: 0xe8d3a0, hemi: 1.0, sun: 0xfff0d2, sunI: 2.8, dir: [-12, 24, -30], size: 28, target: [0, 0, -6] });
+  const END = 900, LANES = [-19, -15.5, -12], SPEED = { boat: 11, jet: 12.5 };
+  const ocean = waterMat(0x0d9fbf, { amp: 0.8 });
+  const oc = add(g, new THREE.PlaneGeometry(1400, 400, 280, 80), ocean, 450, -0.35, -190, false); oc.rotation.x = -Math.PI / 2;
+  const sandT = rep(canvasTex(256, 256, (c, w, h) => { c.fillStyle = '#e8d2a2'; c.fillRect(0, 0, w, h); for (let i = 0; i < 9000; i++) { c.fillStyle = Math.random() < 0.5 ? 'rgba(170,140,90,.25)' : 'rgba(255,250,235,.35)'; c.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5); } }), 200, 4);
+  const sand = add(g, new THREE.PlaneGeometry(1400, 18.5), temp(new THREE.MeshStandardMaterial({ map: sandT, roughness: 1 })), 450, 0, -0.25, false); sand.rotation.x = -Math.PI / 2; sand.receiveShadow = true;
+  const wet = add(g, new THREE.PlaneGeometry(1400, 4), M(0xb39a6c, { roughness: 0.35 }), 450, -0.25, -10.5, false); wet.rotation.x = -Math.PI / 2 + 0.1;
+  const foamM = temp(new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, roughness: 1, depthWrite: false }));
+  const foam = add(g, new THREE.PlaneGeometry(1400, 1.2), foamM, 450, 0.03, -9.4, false); foam.rotation.x = -Math.PI / 2;
+  add(g, box(1400, 0.25, 3), M(0xf3c6c6, { roughness: 0.9 }), 450, 0.12, 10);
+  add(g, box(1400, 0.06, 8), M(0x55565c, { roughness: 0.95 }), 450, 0.03, 15.5);
+  add(g, box(1400, 0.25, 2.5), M(0xe9e0d6, { roughness: 0.9 }), 450, 0.12, 20.5);
+  // escenario a la derecha (playa, palmeras, edificios Art Déco, horizonte) en tramos que se muestran cerca de ti
+  const chunks = [], palms = [], towers = [], NEON = [0xff4fa3, 0x24d1ff, 0x7bff6a, 0xffb000, 0xb36bff], DCOL = [0xffc2d1, 0xa8ece6, 0xfff1b8, 0xd6c6ff, 0xffd3b0, 0xbfe6ff], NAMES = ['SOL', 'PALMA', 'BRISA', 'CORAL', 'MAREA', 'VICE', 'TROPICAL', 'AZUL', 'OCEAN', 'LUNA', 'ARENA', 'MIAMI'];
+  const animals = [], mixers = [], hitM = temp(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+  const addA = (obj, sp, r) => { add(obj, sph(r / obj.scale.x, 8), hitM, 0, 0.5, 0, false).userData.sp = sp; animals.push(obj); return obj; };
+  const dolphins = [], turtles = [], manatees = [], birds = [];
+  let bi = 0;
+  for (let c0 = -60; c0 < END + 80; c0 += 120) {
+    const C = new THREE.Group(); C.userData.cx = c0 + 60; g.add(C); chunks.push(C);
+    for (let x = c0; x < c0 + 120;) { const w = rnd(11, 16); decoBuilding(C, x + w / 2, w, rnd(11, 22), DCOL[bi % 6], NEON[bi % 5], NAMES[bi % 12]); bi++; x += w + 1.2; }
+    for (let x = c0 + 5; x < c0 + 120; x += 18) palms.push(palm(C, x + rnd(-2, 2), 8.6, 1, rnd(7, 10)));
+    for (let k = 0; k < 2; k++) palms.push(palm(C, c0 + rnd(10, 110), rnd(-2, 4), 1, rnd(6, 8)));
+    towers.push(lifeguard(C, c0 + rnd(20, 100), -4, pick(['#ff7ab6', '#ffd23a', '#24d1ff']), pick(['#24d1ff', '#ff5a3a', '#ffffff'])));
+    for (let k = 0; k < 3; k++) { const x = c0 + rnd(5, 115), z = rnd(-6, 2); add(C, cyl(0.04, 0.04, 2.4, 6), M(0xffffff), x, 1.2, z); add(C, cone(1.6, 0.6, 16), stripedMat(pick(['#ff5a3a', '#24d1ff', '#ffd23a', '#7bff6a']), '#ffffff', 16), x, 2.4, z); }
+    for (let k = 0; k < 3; k++) { const h = rnd(45, 110), w = rnd(12, 18); add(C, box(w, h, w), M(pick([0x9fb8c8, 0xb8c8d4, 0x7f9aab, 0xd6dde2]), { metalness: 0.7, roughness: 0.12 }), c0 + rnd(0, 120), h / 2, rnd(75, 120), false); }
+    if ((c0 / 120) % 2 === 0) { const px = c0 + rnd(30, 90); add(C, box(3, 0.3, 2.2), M(0x8a6a48, { roughness: 0.9 }), px, 0.5, -9.6); for (const s2 of [-1.3, 1.3]) add(C, cyl(0.15, 0.15, 2, 8), M(0x5a4030), px + s2, -0.3, -10.4); }
+    for (let k = 0; k < 2; k++) { const t = addA(turtle(), '🐢', 1.8); t.scale.setScalar(1.5); t.position.set(c0 + rnd(10, 110), 0.02, rnd(-7, -3)); t.rotation.y = Math.PI; C.add(t); turtles.push(t); }
+    { const m = addA(manatee(), '🦭', 2.2); m.position.set(c0 + rnd(20, 100), -0.42, -10.2); m.rotation.y = Math.PI / 2; m.userData.ph = rnd(0, 6); C.add(m); manatees.push(m); }
+    for (let k = 0; k < 2; k++) { const d = addA(dolphin(), '🐬', 2.4); d.scale.setScalar(1.3); d.userData.x0 = c0 + rnd(10, 100); d.userData.z0 = k ? rnd(-31, -27) : rnd(-26, -23); d.userData.ph = rnd(0, 6); C.add(d); dolphins.push(d); }
+    { const b = spawnGLB('Parrot.glb', C, mixers, { s: 0.014 }); addA(b, '🦜', 2.5); b.userData = { ...b.userData, cx: c0 + rnd(20, 100), r: rnd(5, 9), h: rnd(6, 10), sp: rnd(0.4, 0.7), ph: rnd(0, 6) }; birds.push(b); }
+  }
+  const traffic = [[0xff4fa3, 0, 13.6, 7], [0x24d1ff, 40, 13.6, 7], [0xffe14d, 20, 17.4, -6], [0x8a5cff, 70, 17.4, -6]].map(a => car(g, ...a));
+  // estrellas para recoger y boyas para esquivar, en filas
+  const items = [], starGeoG = starMesh;
+  for (let x = 40; x < END - 20; x += 16) {
+    const free = [0, 1, 2].sort(() => Math.random() - 0.5);
+    if (Math.random() < 0.55) { const L = free.pop(), b = new THREE.Group(); b.position.set(x, -0.3, LANES[L]); g.add(b); const c = L % 2 ? 0xd4202a : 0x1f9a3a;
+      add(b, cyl(0.5, 0.65, 1.6, 14), M(c, { roughness: 0.5 }), 0, 0.5, 0); add(b, cone(0.5, 0.6, 14), M(c), 0, 1.6, 0); add(b, box(1, 0.1, 1), M(0xffffff), 0, 0.9, 0, false);
+      items.push({ o: b, x, L, type: 'buoy', ph: rnd(0, 6) }); }
+    const L = free.pop(), st = starGeoG(); st.scale.setScalar(1.7); st.position.set(x, 1.3, LANES[L]); g.add(st); items.push({ o: st, x, L, type: 'star' });
+  }
+  // arcos de parada y meta
+  const STOPS = [
+    { x: 250, name: 'South Beach', q: '¿Cómo se llama la avenida frente a la playa de Miami Beach, famosa por sus edificios Art Déco?', o: ['Broadway', 'Ocean Drive', 'Hollywood Boulevard'], a: 1 },
+    { x: 520, name: 'Bahía Biscayne', q: '¿Qué bahía separa a la ciudad de Miami de Miami Beach?', o: ['Bahía de Tampa', 'Bahía Biscayne', 'Bahía de Cádiz'], a: 1 },
+    { x: 790, name: 'Pequeña Habana', q: '¿Qué barrio de Miami es famoso por la Calle Ocho y la cultura cubana?', o: ['La Pequeña Habana', 'Chinatown', 'Harlem'], a: 0 }
+  ];
+  const gate = (x, txt, col) => { const a = new THREE.Group(); a.position.set(x, 0, -15.5); g.add(a); for (const z of [-7.5, 7.5]) add(a, cyl(0.4, 0.5, 8, 12), M(col, { roughness: 0.4 }), 0, 3.5, z); add(a, box(0.5, 1.6, 15.6), M(col, { roughness: 0.4 }), 0, 7.6, 0); const sgn = add(a, new THREE.PlaneGeometry(14, 1.4), temp(new THREE.MeshStandardMaterial({ map: textTex(txt, 1024, 110, 'rgba(0,0,0,0)', '#ffffff', 'bold 70px system-ui'), transparent: true, emissive: 0x333333, side: THREE.DoubleSide })), -0.3, 7.6, 0, false); sgn.rotation.y = -Math.PI / 2; return a; };
+  STOPS.forEach((S2, i) => gate(S2.x, `📍 PARADA ${i + 1} · ${S2.name.toUpperCase()}`, 0xff7a1a));
+  gate(END, '🏁 META · MARINA DE MIAMI BEACH', 0x1d6fd8);
+  for (let k = 0; k < 4; k++) { const b = boatModel(); b.scale.setScalar(0.8); b.position.set(END + 12 + k * 7, -0.3, -12 + (k % 2) * 3); b.rotation.y = 0.3; g.add(b); }
+  // vehículo del jugador
+  const VEH = { boat: { g: boatModel(), eye: 2.35, cam: 0.6 }, jet: { g: jetModel(), eye: 1.75, cam: -0.45 } };
+  VEH.boat.g.visible = VEH.jet.g.visible = false; g.add(VEH.boat.g, VEH.jet.g);
+  let veh = null, running = false, alive = true, x = 0, lane = 1, z = LANES[1], hearts = 3, stars = 0, photos = new Set(), inv = 0, stopI = 0, phase = 'drive', infoT = 0, eng = null, waveT = 0;
+  const FACT = { '🐢': 'Tortuga marina: Florida tiene la mayor cantidad de nidos de tortugas marinas de EE. UU.', '🐬': 'Delfín nariz de botella: es el mamífero oficial de agua salada de Florida.', '🦭': 'Manatí: es el mamífero marino oficial de Florida. Nada despacio cerca de la orilla.', '🦜': 'Loro: en Miami viven loros en libertad.' };
+  const info = () => ctx.info(`${'❤️'.repeat(hearts)}${'🖤'.repeat(3 - hearts)} · ⭐ ${stars} · 📸 ${photos.size}/4 · 🏁 ${Math.min(100, Math.round(x / END * 100))}%`);
+  const bar = document.createElement('div'); bar.id = 'pickbar'; bar.className = 'hidden'; document.getElementById('app').appendChild(bar);
+  const setLane = l => { const n = clamp(l, 0, 2); if (n !== lane) { lane = n; ctx.sfx('click'); } };
+  function showLanes() {
+    bar.innerHTML = '<button class="lane" data-d="-1">◀</button><button class="lane" data-d="1">▶</button>';
+    bar.querySelectorAll('button').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); setLane(lane + +b.dataset.d); }));
+    bar.classList.remove('hidden'); document.body.classList.add('hasbar');
+  }
+  const KEYS = { ArrowLeft: -1, KeyA: -1, ArrowRight: 1, KeyD: 1 }, kd = e => { if (KEYS[e.code] && running) setLane(lane + KEYS[e.code]); };
+  addEventListener('keydown', kd);
+  function pickVehicle() {
+    ctx.card('Elige tu vehículo', '<p>🚤 <b>Lancha rápida</b>: vas de pie, ves todo desde arriba.<br>🌊 <b>Moto de agua</b>: más rápida y cerca del agua.</p>', [
+      { label: '🚤 Lancha rápida', primary: true, fn: () => go('boat') }, { label: '🌊 Moto de agua', fn: () => go('jet') }]);
+  }
+  function go(k) {
+    veh = k; VEH[k].g.visible = true; running = true; showLanes(); info(); refreshHint(); ctx.sfx('portal');
+    const ac = ctx.audio && ctx.audio();
+    if (ac) { const o = ac.createOscillator(), f = ac.createBiquadFilter(), gn = ac.createGain(); o.type = 'sawtooth'; o.frequency.value = 60; f.type = 'lowpass'; f.frequency.value = 450; gn.gain.value = 0.03; o.connect(f).connect(gn).connect(ac.destination); o.start(); eng = { o, gn }; }
+  }
+  function ask() {
+    const S2 = STOPS[stopI]; phase = 'quiz'; if (eng) eng.gn.gain.value = 0.008;
+    ctx.card(`❓ Parada ${stopI + 1} de 3 · ${S2.name}`, `<p>${S2.q}</p>`, S2.o.map((o, i) => ({ label: o, fn: () => {
+      if (i === S2.a) { stars += 3; ctx.sfx('pickup'); ctx.toast('✅ ¡Correcto! +3 ⭐', 2200); } else { ctx.sfx('hurt'); ctx.toast(`❌ Era: ${S2.o[S2.a]}`, 2600); }
+      stopI++; phase = 'drive'; info(); if (eng) eng.gn.gain.value = 0.03;
+    } })));
+  }
+  function photo(a) {
+    const sp = a.children.find(o => o.material === hitM)?.userData.sp || a.userData.sp; if (!sp) return;
+    ctx.sfx('shutter'); const f = document.getElementById('fade'); f.classList.add('on'); setTimeout(() => f.classList.remove('on'), 90);
+    if (photos.has(sp)) { ctx.toast('📸 Ya tienes esa foto', 1200); return; }
+    photos.add(sp); stars += 2; info(); ctx.burst(a.getWorldPosition(_v), [0xffffff, 0xffd700], 30, 1.5); ctx.toast(`📸 ${FACT[sp]} (+2 ⭐)`, 4500);
+  }
+  const pickA = p => { const h = p.ray.intersectObjects(animals.filter(a => a.parent && a.parent.visible), true).find(o => o.object.material === hitM); return h ? h.object.parent : null; };
+  const seat = new V3(), seatPos = () => { const V = VEH[veh || 'boat']; return seat.set(x + V.cam, V.eye + Math.sin(performance.now() / 600) * 0.06, z); };
+  const refreshHint = () => ctx.hint(running ? (ctx.isHand() ? '☝️ Mueve el índice a la izquierda, al centro o a la derecha para cambiar de carril' : '◀ ▶ o desliza para cambiar de carril') + ' · recoge ⭐ · esquiva las boyas · toca animales para fotos 📸' : '');
+  const intro = withIntro(ctx, opt, [{ t: 0, p: [-40, 26, -60], yaw: -2.4, pitch: -0.35 }, { t: 3.5, p: [-8, 6, -26], yaw: -1.9, pitch: -0.15 }, { t: 5, p: [0.6, 2.35, LANES[1]], yaw: -Math.PI / 2 - 0.25, pitch: -0.05 }], -Math.PI / 2 - 0.25, -0.05);
+  let sx = 0, sy = 0;
+  return {
+    camLock: !opt.quick, dwellTime: 0.45, refreshHint,
+    start() { this.camLock = false; pickVehicle(); },
+    onDown(p) { if (intro.on) { intro.finish(); this.camLock = false; return; } sx = p.sx; sy = p.sy; },
+    onMove(p) { if (p.src === 'hand' && running) setLane(p.ndc.x < -0.25 ? 0 : p.ndc.x > 0.25 ? 2 : 1); },
+    onUp(p) { if (!running || p.src === 'hand') return; const dx = p.sx - sx; if (Math.abs(dx) > 40) setLane(lane + Math.sign(dx)); else { const a = pickA(p); if (a) photo(a); } },
+    tap(p) { const a = running && pickA(p); if (a) photo(a); },
+    hoverable: p => (running ? pickA(p) : null),
+    update(dt, t) {
+      mixers.forEach(m => m.update(dt)); ocean.userData.uT.value = t;
+      if (intro.on) { intro.update(dt); if (!intro.on) this.camLock = false; }
+      if (running && phase === 'drive') {
+        x += SPEED[veh] * dt; inv = Math.max(0, inv - dt);
+        if (stopI < 3 && x >= STOPS[stopI].x) { x = STOPS[stopI].x; ask(); }
+        if (x >= END) { x = END; running = false; bar.classList.add('hidden'); if (eng) eng.gn.gain.value = 0.0001;
+          for (let k = 0; k < 6; k++) setTimeout(() => ctx.burst(_v.set(END + rnd(-5, 15), rnd(8, 14), rnd(-25, -10)), [0xff4fa3, 0xffd23a, 0x24d1ff, 0xffffff], 60, 4), k * 250);
+          ctx.sfx('crowd'); setTimeout(() => ctx.win('miami'), 1500); }
+      }
+      z = lerp(z, LANES[lane], Math.min(1, dt * 6));
+      if (!intro.on) camera.position.copy(seatPos());
+      if (veh) { const G2 = VEH[veh].g; G2.position.set(x, -0.15 + Math.sin(t * 1.7) * 0.06, z); G2.rotation.set(Math.sin(t * 1.1) * 0.03, (LANES[lane] - z) * -0.06, Math.sin(t * 1.3) * 0.025);
+        if (running && phase === 'drive' && Math.random() < 0.9) { const back = veh === 'jet' ? 1.6 : 3.3; ctx.burst(_w.set(x - back, 0.1, z + rnd(-0.5, 0.5)), [0xffffff, 0xd8f4ff], 2, 1.4, 4); } }
+      for (const it of items) {
+        if (!it.o.visible || Math.abs(it.x - x) > 60) continue;
+        if (it.type === 'star') it.o.rotation.y += dt * 3; else it.o.position.y = -0.3 + Math.sin(t * 1.5 + it.ph) * 0.1;
+        if (running && Math.abs(it.x - x) < 2 && Math.abs(LANES[it.L] - z) < 2.2) {
+          if (it.type === 'star') { it.o.visible = false; stars++; ctx.sfx('pickup'); ctx.burst(it.o.position, [0xffd700, 0xffffff], 20, 1.6); info(); }
+          else if (!inv) { inv = 1.2; hearts--; ctx.sfx('hurt'); ctx.flash(); if (navigator.vibrate) navigator.vibrate(80); ctx.burst(it.o.position, [0xffffff, 0xbfefff], 30, 2.5, 5); info();
+            if (hearts <= 0) { running = false; bar.classList.add('hidden'); if (eng) eng.gn.gain.value = 0.0001; ctx.lose('Chocaste 3 veces con las boyas. Cambia de carril con ◀ ▶ (o deslizando) cuando veas una boya roja o verde adelante.'); } }
+        }
+      }
+      chunks.forEach(C => (C.visible = Math.abs(C.userData.cx - x) < 200));
+      skyM.position.x = x; sun.position.set(x - 12, 24, -36); sun.target.position.set(x + 10, 0, -6);
+      foam.position.z = -9.4 + Math.sin(t * 0.8) * 0.6; foamM.opacity = 0.45 + Math.sin(t * 0.8 + 1) * 0.3;
+      waveT -= dt; if (waveT <= 0) { waveT = 3.2; ctx.sfx('waves'); }
+      traffic.forEach(c => { c.position.x += c.userData.sp * dt; if (c.position.x < x - 80) c.position.x += 200; if (c.position.x > x + 120) c.position.x -= 200; });
+      palms.forEach(p => { if (p.parent.visible) p.userData.crown.rotation.z = Math.sin(t * 0.9 + p.userData.ph) * 0.05; });
+      towers.forEach((tw, i) => { if (tw.parent.visible) tw.userData.flag.rotation.y = Math.sin(t * 4 + i) * 0.4; });
+      turtles.forEach(tt => { if (!tt.parent.visible) return; tt.position.z -= dt * 0.1; if (tt.position.z < -8) tt.position.z = -3; tt.userData.fl.forEach((f, k) => (f.rotation.y = Math.sin(t * 2 + k) * 0.4)); });
+      manatees.forEach(m => { m.position.x += dt * 0.6; m.position.y = -0.38 + Math.sin(t + m.userData.ph) * 0.06; });
+      dolphins.forEach(d => { if (!d.parent.visible) return; const u = d.userData, c = (t * 0.33 + u.ph) % 1; d.position.set(u.x0 + c * 12, -0.6 + Math.sin(c * Math.PI) * 2.4 - (c > 0.95 ? 2 : 0), u.z0); d.rotation.x = -Math.cos(c * Math.PI) * 0.9; d.rotation.y = Math.PI / 2; });
+      birds.forEach(b => { const u = b.userData, a = t * u.sp + u.ph; b.position.set(u.cx + Math.cos(a) * u.r, u.h, 6 + Math.sin(a) * u.r); b.rotation.y = Math.atan2(-Math.sin(a), Math.cos(a)); });
+      if (running) { infoT += dt; if (infoT > 0.5) { infoT = 0; info(); } }
+    },
+    dispose() { alive = false; running = false; restoreEnv(); bar.remove(); document.body.classList.remove('hasbar'); removeEventListener('keydown', kd); if (eng) { try { eng.o.stop(); } catch (e) {} } }
+  };
+}
+
 /* ---------- iconos de portal y catálogo ---------- */
 export const GAMES2 = {
+  miami: {
+    short: 'Tour acuático', title: '🚤 Miami Beach — Tour acuático', winMsg: '¡Completaste el tour acuático por Miami Beach!', create: waterTour,
+    how: h => 'Recorres la costa de Miami Beach por el mar: <b>a tu derecha</b> verás la playa, las palmeras, los edificios Art Déco y animales.<br>🚤 El vehículo avanza solo. Tú solo eliges el <b>carril</b>: ' + (h ? 'mueve tu índice a la izquierda, al centro o a la derecha' : 'botones <b>◀ ▶</b> o desliza el dedo') + '.<br>⭐ Recoge estrellas · 🔴🟢 esquiva las boyas (tienes 3 ❤️) · 📸 toca los animales para fotografiarlos.<br>❓ En 3 paradas respondes una pregunta sobre Miami. ¡Llega a la meta!',
+    fact: 'Florida es conocida como “The Sunshine State” (el Estado del Sol), y Miami Beach es una de sus playas más famosas del mundo.'
+  },
   heroes: {
     short: 'Isla de Héroes', title: '🦸 Orlando — Isla de Héroes', winMsg: '¡Salvaste la Isla de Héroes!', create: heroes,
     icon() { const i = new THREE.Group(); const m = weaponModel(2); m.scale.setScalar(0.42); i.add(m); return i; },
-    how: h => 'Estás en una zona de parque temático de superhéroes. Primero <b>elige tu arma</b>: martillo del trueno (rayos), arco de precisión (flechas) o escudo bumerán (rebota y regresa). Luego ' + (h ? '<b>apunta con tu índice</b> a los drones y haz pinza o deja el dedo quieto' : '<b>toca los drones</b>') + ' para derribarlos. Gira el celular para buscarlos. <b>Derriba 5 drones.</b>',
+    how: h => '🚨 ¡Unos drones invaden el parque de superhéroes!<br>1️⃣ <b>Elige tu arma</b> con los botones de abajo.<br>2️⃣ Los drones aparecen <b>de uno en uno frente a ti</b>, marcados con un <b>aro rojo</b>.<br>3️⃣ Pulsa el botón grande de ataque ' + (h ? '(o haz pinza)' : '(o toca la pantalla)') + '. Cada dron aguanta 2 golpes.<br><b>Derriba 5 drones.</b>',
     fact: 'Islands of Adventure, en Universal Orlando, abrió en 1999 y una de sus zonas está dedicada a los superhéroes de cómic.'
   },
   city: {

@@ -2,7 +2,7 @@
 // solo se devuelve la punta estimada del zapato del pie elegido (landmarks 31/32 + extensión desde el talón 29/30).
 const VER = '0.10.14';
 const BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VER}`;
-const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
 
 let pl = null, on = false, lastTime = -1, lastRun = 0;
 export const foot = { side: 'right', ext: 0.3 }; // ext: cuánto se prolonga desde el talón hacia la punta (calibrable)
@@ -12,7 +12,7 @@ export async function startFoot(video, cb) {
   if (!pl) {
     const { FilesetResolver, PoseLandmarker } = await import(`${BASE}/vision_bundle.mjs`);
     const files = await FilesetResolver.forVisionTasks(`${BASE}/wasm`);
-    const opts = delegate => ({ baseOptions: { modelAssetPath: MODEL, delegate }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: 0.4, minPosePresenceConfidence: 0.4, minTrackingConfidence: 0.4 });
+    const opts = delegate => ({ baseOptions: { modelAssetPath: MODEL, delegate }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: 0.3, minPosePresenceConfidence: 0.3, minTrackingConfidence: 0.3 });
     try { pl = await PoseLandmarker.createFromOptions(files, opts('GPU')); }
     catch (e) { pl = await PoseLandmarker.createFromOptions(files, opts('CPU')); }
   }
@@ -21,14 +21,19 @@ export async function startFoot(video, cb) {
     if (!on) return;
     requestAnimationFrame(step);
     const now = performance.now();
-    if (now - lastRun < 33 || video.readyState < 2 || video.currentTime === lastTime) return;
+    if (now - lastRun < 20 || video.readyState < 2 || video.currentTime === lastTime) return;
     lastRun = now; lastTime = video.currentTime;
     let r; try { r = pl.detectForVideo(video, now); } catch (e) { return; }
     const p = r.landmarks && r.landmarks[0];
-    const [hi, ti] = foot.side === 'left' ? [29, 31] : [30, 32];
-    if (!p || !p[ti] || (p[ti].visibility ?? 1) < 0.4) { cb({ present: false }); return; }
-    const h = p[hi], t = p[ti];
-    cb({ present: true, x: t.x + (t.x - h.x) * foot.ext, y: t.y + (t.y - h.y) * foot.ext });
+    if (!p) { cb({ present: false, body: false }); return; }
+    // pie elegido; si no se ve bien se usa el otro, y si tampoco, el tobillo
+    const sides = foot.side === 'left' ? [[29, 31, 27], [30, 32, 28]] : [[30, 32, 28], [29, 31, 27]];
+    const vis = i => (p[i] && (p[i].visibility ?? 1)) || 0;
+    for (const [hi, ti, ai] of sides) {
+      if (vis(ti) > 0.15 && vis(hi) > 0.1) { const h = p[hi], t = p[ti]; cb({ present: true, x: t.x + (t.x - h.x) * foot.ext, y: t.y + (t.y - h.y) * foot.ext }); return; }
+    }
+    for (const [, , ai] of sides) if (vis(ai) > 0.2) { cb({ present: true, x: p[ai].x, y: p[ai].y + 0.04 }); return; }
+    cb({ present: false, body: true });
   };
   step();
 }
