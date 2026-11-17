@@ -204,13 +204,15 @@ function sky(top, hor, bot, stars = 0) { // cúpula de cielo con degradado (y es
   const m = new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), mat);
   m.frustumCulled = false; m.renderOrder = -10; return m;
 }
+let Q = 2; // calidad: 0 bajo, 1 medio, 2 alto
+export function setQuality(q) { Q = q; }
 function lightRig(g, o) {
   g.add(new THREE.HemisphereLight(o.sky, o.ground, o.hemi));
   const d = new THREE.DirectionalLight(o.sun, o.sunI);
   const t = o.target || [0, 0, 0];
   d.position.set(t[0] + o.dir[0], t[1] + o.dir[1], t[2] + o.dir[2]); d.target.position.set(...t);
   g.add(d, d.target);
-  d.castShadow = true; d.shadow.mapSize.set(2048, 2048);
+  d.castShadow = Q > 0; d.shadow.mapSize.set(Q > 1 ? 2048 : 1024, Q > 1 ? 2048 : 1024);
   const c = d.shadow.camera; c.left = c.bottom = -o.size; c.right = c.top = o.size; c.near = 0.5; c.far = 120;
   d.shadow.bias = -0.0004; d.shadow.normalBias = 0.03;
   return d;
@@ -389,21 +391,23 @@ export function createHub(ctx, opt = {}) {
   const coins = [];
 
   // Portales
-  const DEST = [['orlando', -0.88, 1.28, 0x9b5cff], ['miami', 0, 1.6, 0xff4fa3], ['heat', 0.88, 1.28, 0xff3b30]];
+  const DEST = [['orlando', -0.78, 1.95, 0x9b5cff], ['heroes', -0.78, 1.2, 0xe23b3b], ['city', 0, 1.95, 0xff4fa3], ['miami', 0, 1.2, 0x24d1ff],
+    ['heat', 0.78, 2.3, 0xff3b30], ['fg', 0.78, 1.6, 0xb8742a], ['penalty', 0.78, 0.9, 0x2c9a4a]];
+  const cats = [['ORLANDO', -0.78, 2.45], ['MIAMI', 0, 2.45], ['DEPORTES', 0.78, 2.8]].map(([t, x, y]) => { const l = label(t, 0.11, '#ffd54a', 'rgba(40,10,60,.85)'); l.position.set(x, y, 0); l.visible = false; g.add(l); return l; });
   const portals = DEST.map(([key, x, y, col]) => {
     const p = new THREE.Group(); p.userData = { key, x, y, t: 0 }; p.visible = false; g.add(p);
     p.add(glow(col, 1.3, 0.55));
     add(p, new THREE.TorusGeometry(0.32, 0.04, 16, 48), M(col, { emissive: col, emissiveIntensity: 1.4, metalness: 0.4, roughness: 0.3 }), 0, 0, 0, false);
     add(p, new THREE.TorusGeometry(0.36, 0.012, 8, 48), M(0xffd36b, { metalness: 1, roughness: 0.2 }), 0, 0, 0, false);
     p.userData.swirl = add(p, new THREE.CircleGeometry(0.3, 48), temp(new THREE.MeshBasicMaterial({ map: swirlTex(col), transparent: true, opacity: 0.95 })), 0, 0, 0, false);
-    const icon = ICONS[key](); icon.position.z = 0.14; p.add(icon); p.userData.icon = icon;
-    const lb = label(GAMES[key].short, 0.13); lb.position.y = -0.48; p.add(lb);
+    const icon = (ICONS[key] || ctx.GAMES[key].icon)(); icon.position.z = 0.14; p.add(icon); p.userData.icon = icon;
+    const lb = label(ctx.GAMES[key].short, 0.13); lb.position.y = -0.48; p.add(lb);
     if (ctx.stars[key]) { const s = starMesh(); s.scale.setScalar(0.45); s.position.set(0.3, 0.3, 0.06); p.add(s); }
     return p;
   });
 
   let opened = !!opt.opened, openT = opened ? 1 : 0, shake = 0, hover = null, leaving = null, leaveT = 0, spark = 0;
-  if (opened) portals.forEach(p => { p.visible = true; p.userData.t = 1; });
+  if (opened) { portals.forEach(p => { p.visible = true; p.userData.t = 1; }); cats.forEach(c => (c.visible = true)); }
   const refreshHint = () => ctx.hint(opened
     ? (ctx.isHand() ? '☝️ Señala un portal con tu índice y déjalo quieto para viajar' : 'Toca un portal para viajar a ese destino')
     : (ctx.isHand() ? '☝️ Señala el cofre con tu índice y déjalo quieto para abrirlo' : 'Toca el cofre mágico para abrirlo'));
@@ -425,7 +429,7 @@ export function createHub(ctx, opt = {}) {
         c.userData = { v: new V3(Math.cos(a) * s, rnd(2, 3.2), Math.sin(a) * s * 0.6 + 0.4), r: new V3(rnd(-9, 9), rnd(-9, 9), 0), life: 2.5 };
         coins.push(c);
       }
-      setTimeout(() => { portals.forEach(q => (q.visible = true)); ctx.sfx('portal'); refreshHint(); }, 700);
+      setTimeout(() => { portals.forEach(q => (q.visible = true)); cats.forEach(c => (c.visible = true)); ctx.sfx('portal'); refreshHint(); }, 700);
     }, 550);
   }
   return {
@@ -447,8 +451,8 @@ export function createHub(ctx, opt = {}) {
       if (opened) openT = Math.min(1, openT + dt * 1.2);
       lid.rotation.x = -1.95 * easeBack(openT);
       const k = easeOut(openT);
-      if (!(shake && !opened)) chest.position.y = 0.45 - 0.2 * k + Math.sin(t * 1.6) * 0.03;
-      chest.scale.setScalar(1 - 0.3 * k);
+      if (!(shake && !opened)) chest.position.y = 0.45 - 0.25 * k + Math.sin(t * 1.6) * 0.03;
+      chest.scale.setScalar(1 - 0.45 * k);
       chest.rotation.y = Math.sin(t * 0.7) * 0.15 * (1 - k);
       aura.material.opacity = 0.32 + Math.sin(t * 3) * 0.1;
       inner.scale.setScalar(0.1 + k * 1.2);
@@ -470,7 +474,7 @@ export function createHub(ctx, opt = {}) {
         const u = p.userData; u.t = Math.min(1, u.t + dt * 1.3);
         const e = easeBack(u.t);
         p.position.set(u.x * e, 0.4 + (u.y - 0.4) * e + Math.sin(t * 1.5 + u.x * 3) * 0.04, 0);
-        let s = e * (hover === p ? 1.15 : 1);
+        let s = e * 0.72 * (hover === p ? 1.15 : 1);
         if (leaving === p) { leaveT += dt; s *= 1 + leaveT * leaveT * 12; p.position.z += leaveT * leaveT * 6; }
         p.scale.setScalar(Math.max(0.001, s));
         u.swirl.rotation.z -= dt * (leaving === p ? 8 : 2); u.icon.rotation.y += dt * 1.2;
@@ -636,6 +640,30 @@ function coaster(g) {
   return { curve, cars, u: 0 };
 }
 
+/* Cinco varitas originales (madera, empuñadura y punta distintas) */
+const WANDS = [
+  { name: 'Acebo', wood: '#8a6238', len: 0.28, cd: 0.5, sp: 16, hit: 0.6, tip: 0xffe2b0, note: 'equilibrada' },
+  { name: 'Vid tallada', wood: '#4a2c18', len: 0.32, cd: 0.42, sp: 16, hit: 0.6, tip: 0xc8ff9a, note: 'lanza más seguido' },
+  { name: 'Fresno claro', wood: '#c4a27a', len: 0.3, cd: 0.5, sp: 22, hit: 0.6, tip: 0xbfe6ff, note: 'hechizos más rápidos' },
+  { name: 'Roble nudoso', wood: '#5e4430', len: 0.34, cd: 0.6, sp: 15, hit: 0.85, tip: 0xffc070, note: 'hechizos más grandes' },
+  { name: 'Ébano y plata', wood: '#1d1716', len: 0.33, cd: 0.45, sp: 19, hit: 0.65, tip: 0xe8e8ff, note: 'rápida y precisa' }
+];
+let chosenWand = null;
+function wandModel(d, i) { // modelo a lo largo de +Y, de 0 a d.len
+  const g = new THREE.Group(), L = d.len;
+  const tex = canvasTex(64, 256, (q, w, h) => { q.fillStyle = d.wood; q.fillRect(0, 0, w, h); for (let k = 0; k < 500; k++) { q.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.28)' : 'rgba(255,230,190,.14)'; q.fillRect(Math.random() * w, Math.random() * h, 2, 6 + Math.random() * 24); } });
+  const wood = temp(new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 1.4, roughness: 0.72 }));
+  const prof = [[0.001, 0], [0.012, 0.005], [0.0115, 0.04], [0.0125, 0.08], [0.011, 0.1], [0.0085, 0.13], [0.0065, 0.6], [0.0042, 1]];
+  if (i === 2) prof.splice(1, 3, [0.016, 0.02], [0.018, 0.05], [0.012, 0.09]);
+  add(g, new THREE.LatheGeometry(prof.map(([r, y]) => new V2(r * (i === 3 ? 1.15 : 1), y * L)), 14), wood, 0, 0, 0, false);
+  const silver = M(0xd8d8e0, { metalness: 1, roughness: 0.25 });
+  if (i === 0) add(g, new THREE.TorusGeometry(0.0125, 0.0025, 6, 16), M(0x6a4a2a), 0, 0.1 * L, 0, false).rotation.x = Math.PI / 2;
+  if (i === 1) for (let k = 0; k < 7; k++) { const t = add(g, new THREE.TorusGeometry(0.0115 - k * 0.0007, 0.0018, 6, 16), wood, 0, (0.02 + k * 0.035) * L / 0.28, 0, false); t.rotation.x = Math.PI / 2 + 0.35; }
+  if (i === 3) for (let k = 0; k < 5; k++) add(g, sph(0.0055, 8), wood, (k % 2 ? 1 : -1) * 0.007, (0.2 + k * 0.14) * L, 0.002, false);
+  if (i === 4) { add(g, cylG(0.0135, 0.0135, 0.012, 14), silver, 0, 0.11 * L, 0, false); add(g, cylG(0.0135, 0.012, 0.01, 14), silver, 0, 0.012, 0, false); add(g, cone(0.0045, 0.02, 10), silver, 0, L + 0.006, 0, false); }
+  return g;
+}
+
 function orlando(ctx, opt) {
   const { camera, scene } = ctx, g = new THREE.Group(); ctx.root.add(g);
   const skyM = sky(0x23306e, 0xffa66b, 0x3a2a3a); g.add(skyM);
@@ -761,12 +789,25 @@ function orlando(ctx, opt) {
   const stunStars = [0, 1, 2].map(() => { const s = starMesh(); s.scale.setScalar(0.25); s.visible = false; en.add(s); return s; });
   // Varita del jugador: madera tallada de unos 30 cm, sin brillo exagerado
   const COL = { expelliarmus: 0xff3030, stupefy: 0x8fd0ff, protego: 0x66ccff };
-  const wandTex = keep(canvasTex(64, 256, (q, w, h) => { q.fillStyle = '#6a4a2a'; q.fillRect(0, 0, w, h); for (let i = 0; i < 400; i++) { q.fillStyle = Math.random() < 0.5 ? 'rgba(40,25,10,.4)' : 'rgba(160,120,80,.25)'; q.fillRect(Math.random() * w, Math.random() * h, 2, 8 + Math.random() * 20); } }));
-  const wood = temp(new THREE.MeshStandardMaterial({ map: wandTex, bumpMap: wandTex, bumpScale: 1.2, roughness: 0.75 }));
   const wand = new THREE.Group(); camera.add(wand);
-  const wg = new THREE.LatheGeometry([new V2(0.0045, 0.3), new V2(0.006, 0.2), new V2(0.008, 0.11), new V2(0.011, 0.1), new V2(0.012, 0.06), new V2(0.0105, 0.03), new V2(0.013, 0.005), new V2(0.001, 0)], 12); wg.rotateX(Math.PI / 2);
-  add(wand, wg, wood, 0, 0, 0, false);
-  const tip = glow(COL.expelliarmus, 0.06, 0.8); tip.position.z = 0.305; wand.add(tip);
+  let W = WANDS[0], wandMesh = null;
+  const tip = glow(COL.expelliarmus, 0.06, 0.8); wand.add(tip);
+  const setWand = i => {
+    W = WANDS[i]; if (wandMesh) { wand.remove(wandMesh); disposeTree(wandMesh); }
+    wandMesh = wandModel(W, i); wandMesh.rotation.x = Math.PI / 2; wand.add(wandMesh); tip.position.z = W.len + 0.008;
+  };
+  if (!opt.quick) chosenWand = null;
+  setWand(chosenWand ?? 0);
+  // vitrina con las 5 varitas girando (vista previa)
+  const shelf = new THREE.Group(); shelf.position.set(0, -0.01, -0.7); shelf.scale.setScalar(0.55); shelf.visible = false; camera.add(shelf);
+  const picks = WANDS.map((d, i) => {
+    const h = new THREE.Group(); h.position.x = (i - 2) * 0.085; shelf.add(h);
+    const m = wandModel(d, i); m.position.y = -d.len / 2; h.add(m); h.add(glow(d.tip, 0.05, 0.6)).position.y = d.len / 2;
+    add(h, box(0.07, 0.38, 0.05), temp(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })), 0, 0, 0, false).userData.wi = i;
+    h.userData.i = i; return h;
+  });
+  let choosing = false, hoverW = -1;
+  const pickW = p => { const h = p.ray.intersectObjects(picks, true).find(o => o.object.userData.wi !== undefined); return h ? h.object.userData.wi : null; };
   const shield = new THREE.Group(); shield.position.set(0, -0.02, -0.6); shield.visible = false; camera.add(shield);
   add(shield, new THREE.CircleGeometry(0.42, 48), temp(new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })), 0, 0, 0, false);
   const hex = add(shield, new THREE.IcosahedronGeometry(0.42, 1), temp(new THREE.MeshBasicMaterial({ color: 0xaee8ff, wireframe: true, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending })), 0, 0, 0, false);
@@ -806,12 +847,12 @@ function orlando(ctx, opt) {
   function cast() {
     if (!running || cd > 0) return;
     if (spell === 'protego') { protego(); return; }
-    cd = 0.5; kick = 1; ctx.sfx('spell');
+    cd = W.cd; kick = 1; ctx.sfx('spell');
     const from = tip.getWorldPosition(new V3()), to = aimPoint();
     enC.copy(en.position).setY(1.15);
     const assist = Math.abs(to.x - enC.x) < 1.2 && Math.abs(to.y - enC.y) < 1.3;
     const m = add(g, sph(0.07, 10), B(COL[spell]), from.x, from.y, from.z, false); m.add(glow(COL[spell], 1.1));
-    shots.push({ m, v: (assist ? enC.clone() : to).sub(from).normalize().multiplyScalar(16), kind: spell, life: 1.4, assist });
+    shots.push({ m, v: (assist ? enC.clone() : to).sub(from).normalize().multiplyScalar(W.sp), kind: spell, life: 1.4, assist });
     ctx.burst(from, COL[spell], 10, 0.8);
   }
   function protego() { if (!running || shieldCd > 0) return; shieldT = 1.7; shieldCd = 3; ctx.sfx('block'); }
@@ -833,10 +874,20 @@ function orlando(ctx, opt) {
 
   return {
     look: true, camLock: !opt.quick, dwellTime: 0.35, repeatDwell: 0.55, refreshHint,
-    start() { running = true; this.camLock = false; ui.classList.remove('hidden'); info(); refreshHint(); setTimeout(() => { if (alive && running) ctx.hint(''); }, 5000); },
-    tap() { if (intro.on) { intro.finish(); this.camLock = false; return; } cast(); },
+    start() {
+      this.camLock = false;
+      if (chosenWand !== null) { running = true; ui.classList.remove('hidden'); info(); refreshHint(); setTimeout(() => { if (alive && running) ctx.hint(''); }, 5000); return; }
+      choosing = true; shelf.visible = true; wand.visible = false; ui.classList.add('hidden'); ctx.info('🪄 Elige tu varita');
+      ctx.hint((ctx.isHand() ? '☝️ Señala' : '👆 Toca') + ' la varita que quieras: ' + WANDS.map(d => d.name).join(' · '));
+    },
+    tap(p) {
+      if (intro.on) { intro.finish(); this.camLock = false; return; }
+      if (choosing) { const i = pickW(p); if (i === null || i === undefined) return; choosing = false; shelf.visible = false; setWand(i); chosenWand = i; ctx.sfx('pickup'); ctx.toast(`🪄 Varita de ${W.name}: ${W.note}`, 3000); this.start(); return; }
+      cast();
+    },
     palm() { protego(); },
     hoverable(p) {
+      if (choosing) return pickW(p);
       if (!running || dead) return null;
       const c = en.localToWorld(_v.set(0, 1.2, 0));
       return p.ray.ray.distanceSqToPoint(c) < 0.9 ? 'enemy' : null;
@@ -885,7 +936,8 @@ function orlando(ctx, opt) {
       shield.visible = shieldT > 0; hex.rotation.z += dt; shield.scale.setScalar(Math.min(1, (1.7 - shieldT) * 6) * (1 + Math.sin(t * 20) * 0.02));
       kick = Math.max(0, kick - dt * 5);
       const n = ctx.ptr.ndc, hh = 0.45 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), hw = hh * camera.aspect;
-      wand.visible = !intro.on;
+      wand.visible = !intro.on && !choosing;
+      if (choosing) { hoverW = pickW(ctx.ptr); picks.forEach(h => { h.rotation.y += dt * 1.2; h.scale.setScalar(h.userData.i === hoverW ? 1.25 : 1); }); if (hoverW !== null && hoverW !== undefined) ctx.info(`🪄 ${WANDS[hoverW].name} — ${WANDS[hoverW].note}`); }
       wand.position.set((n.x * 0.5 + 0.38) * hw, (n.y * 0.4 - 0.58) * hh, -0.42);
       wand.lookAt(aimPoint()); wand.rotateX(-kick * 0.5);
       const cw = camW();
@@ -921,10 +973,10 @@ function orlando(ctx, opt) {
       for (let i = shots.length - 1; i >= 0; i--) {
         const s = shots[i]; s.life -= dt;
         enC.copy(en.position).setY(1.15);
-        if (s.assist && !dead) { _v.copy(enC).sub(s.m.position).normalize().multiplyScalar(16); s.v.lerp(_v, 0.15); }
+        if (s.assist && !dead) { _v.copy(enC).sub(s.m.position).normalize().multiplyScalar(W.sp); s.v.lerp(_v, 0.15); }
         s.m.position.addScaledVector(s.v, dt);
         ctx.burst(s.m.position, COL[s.kind], 1, 0.25);
-        if (!dead && running && en.visible && s.m.position.distanceTo(enC) < 0.6) { enemyHit(s.kind); remove(shots, i); }
+        if (!dead && running && en.visible && s.m.position.distanceTo(enC) < W.hit) { enemyHit(s.kind); remove(shots, i); }
         else if (s.life <= 0) remove(shots, i);
       }
       for (let i = foes.length - 1; i >= 0; i--) {
@@ -942,7 +994,7 @@ function orlando(ctx, opt) {
     },
     dispose() {
       alive = false; running = false; restoreEnv();
-      camera.remove(wand); camera.remove(shield); disposeTree(wand); disposeTree(shield);
+      camera.remove(wand); camera.remove(shield); camera.remove(shelf); disposeTree(wand); disposeTree(shield); disposeTree(shelf);
       ui.classList.add('hidden'); document.getElementById('crosshair').classList.add('hidden');
     }
   };
@@ -1252,7 +1304,35 @@ function miami(ctx, opt) {
   add(motor, box(0.6, 0.7, 0.5), M(0x222222, { roughness: 0.4, metalness: 0.3 }), 0, 0.2, 0); add(motor, box(0.15, 1.1, 0.15), M(0x333333), 0, -0.6, 0);
   const capt = person({ top: 0xffffff, bottom: 0x1d2f6b, sleeves: true, hairStyle: 'short' }); capt.p.position.set(-2.6, 0.72, -0.5); capt.p.rotation.y = Math.PI / 2; capt.arms[1].sh.rotation.x = -0.7; carG.add(capt.p);
   const wakeL = new V3(), wakeR = new V3();
+  // moto de agua
+  const jet = new THREE.Group(); g.add(jet);
+  const js = new THREE.Shape(); js.moveTo(-1.5, -0.55); js.lineTo(0.8, -0.55); js.quadraticCurveTo(1.6, -0.4, 1.9, 0); js.quadraticCurveTo(1.6, 0.4, 0.8, 0.55); js.lineTo(-1.5, 0.55); js.lineTo(-1.5, -0.55);
+  const jg = new THREE.ExtrudeGeometry(js, { depth: 0.55, bevelEnabled: true, bevelSize: 0.1, bevelThickness: 0.1, bevelSegments: 2 }); jg.rotateX(-Math.PI / 2);
+  add(jet, jg, M(0xffd23a, { roughness: 0.3, metalness: 0.2 }), 0, -0.1, 0);
+  const jg2 = new THREE.ExtrudeGeometry(js, { depth: 0.1, bevelEnabled: false }); jg2.rotateX(-Math.PI / 2); add(jet, jg2, M(0x111111, { roughness: 0.4 }), 0, 0.55, 0, false).scale.set(1.02, 1, 1.04);
+  add(jet, box(1.3, 0.25, 0.42), M(0x1a1a1a, { roughness: 0.6 }), -0.5, 0.78, 0);
+  add(jet, box(0.25, 0.45, 0.3), M(0x111111), 0.45, 0.85, 0);
+  const hb = add(jet, cyl(0.025, 0.025, 0.85, 8), chrome, 0.5, 1.12, 0); hb.rotation.x = Math.PI / 2;
+  for (const z of [-0.42, 0.42]) add(jet, cyl(0.035, 0.035, 0.14, 8), M(0x111111), 0.5, 1.12, z).rotation.x = Math.PI / 2;
+  const VEH = { boat: { g: carG, max: 14, acc: 1.4, turn: 0.75, eye: 2.35, cam: 0.6, r: 2.2, name: '🚤 Lancha rápida' }, jet: { g: jet, max: 12.5, acc: 2.2, turn: 1.3, eye: 1.75, cam: -0.45, r: 1.3, name: '🌊 Moto de agua' } };
+  const tags = [['boat', -3.2], ['jet', 3.2]].map(([k, z]) => { const l = label(VEH[k].name, 0.7); l.position.set(START + 15, 3.2, LANE + z); g.add(l); VEH[k].g.position.set(START + 15, -0.35, LANE + z); return l; });
+  // aros de los puntos de control
+  const RING_Z = LANE, ringM = M(0xff7a1a, { emissive: 0xff5a00, emissiveIntensity: 1.2, roughness: 0.4 });
+  const rings = [0, 75, 150, 300, 445].map(cx => { const r = new THREE.Group(); r.position.set(cx, 0, RING_Z); g.add(r); const t = add(r, new THREE.TorusGeometry(4.5, 0.25, 12, 48), ringM, 0, 1.4, 0, false); t.rotation.y = Math.PI / 2; for (const z of [-4.5, 4.5]) add(r, cyl(0.6, 0.7, 1.2, 14), M(0xffffff), 0, -0.1, z); r.add(glow(0xff9a3a, 9, 0.35)).position.y = 1.4; return r; });
+  // obstáculos: boyas del canal y lanchas ancladas
+  const obs = [];
+  for (let i = 0; i < 46; i++) {
+    let ox; do { ox = rnd(-45, 435); } while (rings.some(r => Math.abs(r.position.x - ox) < 10));
+    const oz = rnd(-32, -12), b = new THREE.Group(); b.position.set(ox, -0.3, oz); g.add(b);
+    if (i % 6 === 0) { add(b, box(4, 0.8, 1.6), M(pick([0xffffff, 0x24d1ff, 0xff5a3a]), { roughness: 0.4 }), 0, 0.2, 0); add(b, box(1.2, 0.6, 1.2), M(0x223344, { metalness: 0.8, roughness: 0.1 }), -0.4, 0.9, 0); b.rotation.y = rnd(0, 6); obs.push({ b, r: 2.3, ph: rnd(0, 6) }); }
+    else { const c = i % 2 ? 0xd4202a : 0x1f9a3a; add(b, cyl(0.45, 0.6, 1.6, 14), M(c, { roughness: 0.5 }), 0, 0.5, 0); add(b, cone(0.45, 0.6, 14), M(c), 0, 1.6, 0); add(b, box(0.95, 0.1, 0.95), M(0xffffff), 0, 0.9, 0, false); obs.push({ b, r: 0.9, ph: rnd(0, 6) }); }
+  }
+  // horizonte de Miami y muelles en la bahía
+  for (let i = 0; i < 14; i++) { const h = rnd(40, 110), w = rnd(10, 18); add(Z1, box(w, h, w), M(pick([0x9fb8c8, 0xb8c8d4, 0x7f9aab, 0xd6dde2]), { metalness: 0.7, roughness: 0.12 }), 30 + i * 9 + rnd(-3, 3), h / 2, 70 + rnd(0, 40), false); }
+  for (const px of [-30, 20, 55]) { add(Z1, box(3, 0.3, 14), M(0x8a6a48, { roughness: 0.9 }), px, 0.6, -10); for (let k = 0; k < 4; k++) for (const s2 of [-1.3, 1.3]) add(Z1, cyl(0.15, 0.15, 2.4, 8), M(0x5a4030), px + s2, -0.2, -4.5 - k * 3.5); }
   let alive = true, running = false, x = START, launched = 0, ended = false, zoneIdx = -1, infoT = 0, waveT = 0;
+  let bz = LANE, psi = 0, v = 0, veh = null, choosing = false, tilt = false, crashes = 0, crashT = 0, warnT = 0;
+  const ctrl = { up: 0, down: 0, left: 0, right: 0 };
   const shots = new Set();
   const SP = { '🐢': 'Tortuga marina', '🦜': 'Loro silvestre', '🐊': 'Caimán americano', '🦩': 'Flamenco americano', '🐬': 'Delfín nariz de botella' };
   const FACT = {
@@ -1264,6 +1344,7 @@ function miami(ctx, opt) {
   };
   const ZFACT = [
     '📍 Miami Beach — barrio Art Déco con edificios de los años 20 a 40.',
+    '📍 Bahía Biscayne — Parque Nacional desde 1980; alrededor del 95 % del parque es agua.',
     '📍 Everglades — Parque Nacional desde 1947. Es el único lugar del mundo donde caimanes y cocodrilos viven juntos en libertad.',
     '📍 Overseas Highway — unos 182 km y 42 puentes que unen los Cayos. Key West está a 90 millas de Cuba.',
     '📍 Cabo Cañaveral — desde el Centro Espacial Kennedy despegó el Apolo 11 hacia la Luna en 1969.'
@@ -1271,6 +1352,8 @@ function miami(ctx, opt) {
   const STOPS = [
     { x: 0, name: 'Miami Beach', need: ['🐢', '🦜'], tip: 'Busca 🐢 tortugas en la arena de la playa (a tu derecha) y 🦜 loros volando sobre las palmeras',
       q: '¿De qué estilo son los edificios famosos de Miami Beach?', o: ['Gótico', 'Art Déco', 'Barroco'], a: 1 },
+    { x: 75, name: 'Bahía Biscayne', need: [], tip: 'Mira el horizonte de Miami y los muelles',
+      q: '¿Qué parte del Parque Nacional Biscayne es agua?', o: ['Cerca del 10 %', 'La mitad', 'Cerca del 95 %'], a: 2 },
     { x: 150, name: 'Everglades', need: ['🐊', '🦩'], tip: 'Busca 🐊 caimanes en el agua y en las orillas, y 🦩 flamencos volando',
       q: '¿Qué tiene de único el sur de Florida?', o: ['Tiene volcanes activos', 'Caimanes y cocodrilos viven juntos en libertad', 'Nieva todo el año'], a: 1 },
     { x: 300, name: 'Cayos de Florida', need: ['🐬'], tip: 'Busca 🐬 delfines saltando a los dos lados del puente',
@@ -1278,28 +1361,29 @@ function miami(ctx, opt) {
     { x: 445, name: 'Cabo Cañaveral', need: [], tip: '🚀 Mira a tu izquierda: ¡va a despegar un cohete!',
       q: '¿Qué misión despegó en 1969 desde el Centro Espacial Kennedy rumbo a la Luna?', o: ['Apolo 11', 'Sputnik 1', 'Titanic'], a: 0 }
   ];
-  let phase = 'drive', stopI = 0, stopT = 0, good = 0;
+  let phase = 'drive', stopI = 0, stopT = 0, good = 0; const LAST = STOPS.length - 1;
   const arrow = document.getElementById('arrow');
   const left = () => STOPS[stopI].need.filter(k => !shots.has(k));
   const info = () => ctx.info(phase === 'drive'
-    ? `🚤 Navegando a ${STOPS[stopI].name} · 📸 ${shots.size}/5`
-    : `📍 Parada ${stopI + 1}/4 · ${STOPS[stopI].name} · 📸 ${shots.size}/5 ${Object.keys(SP).map(k => shots.has(k) ? '✅' : k).join('')}`);
+    ? `${veh === 'jet' ? '🌊' : '🚤'} Aro ${stopI + 1}/${STOPS.length}: ${STOPS[stopI].name} · 📸 ${shots.size}/5 · 💥 ${crashes}`
+    : `📍 Parada ${stopI + 1}/${STOPS.length} · ${STOPS[stopI].name} · 📸 ${shots.size}/5 ${Object.keys(SP).map(k => shots.has(k) ? '✅' : k).join('')}`);
   function arrive() {
     phase = 'stop'; stopT = 0; ctx.sfx('portal'); info();
-    ctx.toast(ZFACT[stopI], 7000); ctx.hint(`📍 PARADA ${stopI + 1}/4 · ${STOPS[stopI].tip}. Sigue la flecha amarilla ➤`);
-    if (stopI === 3) { launched = 0.001; ctx.sfx('charge'); }
+    ctx.toast(ZFACT[stopI], 7000); ctx.hint(`📍 PUNTO DE CONTROL ${stopI + 1}/${STOPS.length} · ${STOPS[stopI].tip}. Sigue la flecha amarilla ➤`);
+    v = 0; rings[stopI].visible = false; ctx.burst(_v.set(x, 2, bz), [0xff9a3a, 0xffffff], 40, 2);
+    if (stopI === LAST) { launched = 0.001; ctx.sfx('charge'); }
   }
   function ask() {
     const S = STOPS[stopI]; phase = 'quiz'; arrow.classList.add('hidden');
-    ctx.card(`❓ Pregunta ${stopI + 1} de 4 · ${S.name}`, `<p>${S.q}</p>`, S.o.map((o, i) => ({ label: o, fn: () => {
+    ctx.card(`❓ Pregunta ${stopI + 1} de ${STOPS.length} · ${S.name}`, `<p>${S.q}</p>`, S.o.map((o, i) => ({ label: o, fn: () => {
       if (i === S.a) { good++; ctx.sfx('pickup'); ctx.toast(`✅ ¡Correcto! Llevas ${good} de ${stopI + 1}.`, 2500); }
       else { ctx.sfx('hurt'); ctx.toast(`❌ Era: ${S.o[S.a]}`, 3000); }
-      if (stopI === 3) { ended = true; running = false; setTimeout(() => ctx.win('miami'), 900); return; }
+      if (stopI === LAST) { ended = true; running = false; setTimeout(() => ctx.win('miami'), 900); return; }
       stopI++; phase = 'drive'; info(); refreshHint();
     } })));
   }
   const seat = new V3();
-  const seatPos = () => seat.set(x + 0.6, waterY(x) + 2.35 + Math.sin(performance.now() / 600) * 0.06, LANE);
+  const seatPos = () => { const V = VEH[veh || 'boat']; return seat.set(x + Math.cos(psi) * V.cam, waterY(x) + V.eye + Math.sin(performance.now() / 600) * 0.06, bz - Math.sin(psi) * V.cam); };
   const intro = withIntro(ctx, opt, [
     { t: 0, p: [-95, 30, -30], yaw: -2.2, pitch: -0.4 },
     { t: 3.8, p: [START - 12, 7, LANE - 8], yaw: -1.2, pitch: -0.2 },
@@ -1313,26 +1397,74 @@ function miami(ctx, opt) {
     shots.add(sp); info(); ctx.sfx('pickup'); ctx.burst(obj.getWorldPosition(_v), [0xffffff, 0xffd700], 30, 1.5);
     ctx.toast(`📸 ¡${SP[sp]}! ${FACT[sp]}`, 5000);
   }
+  const pickV = p => { for (const k of ['boat', 'jet']) if (p.ray.intersectObject(VEH[k].g, true).length) return k; return null; };
+  let eng = null;
+  function chooseVeh(k) {
+    veh = k; choosing = false; ctx.sfx('portal'); tags.forEach(l => (l.visible = false));
+    for (const q of ['boat', 'jet']) VEH[q].g.visible = q === k;
+    VEH[k].g.rotation.set(0, 0, 0); running = true; info(); refreshHint(); dpad.classList.remove('hidden');
+    ctx.toast(`${VEH[k].name} lista. Pasa por dentro de los 5 aros naranjas y esquiva las boyas.`, 5000);
+    const ac = ctx.audio && ctx.audio();
+    if (ac) { const o = ac.createOscillator(), f = ac.createBiquadFilter(), gn = ac.createGain(); o.type = 'sawtooth'; o.frequency.value = 50; f.type = 'lowpass'; f.frequency.value = 500; gn.gain.value = 0.0001; o.connect(f).connect(gn).connect(ac.destination); o.start(); eng = { o, gn, ac }; }
+  }
+  // botones de conducción (también flechas o WASD del teclado)
+  const dpad = document.createElement('div'); dpad.id = 'drivepad'; dpad.className = 'hidden';
+  dpad.innerHTML = '<div><button data-k="left">◀</button><button data-k="right">▶</button></div><div><button data-k="tilt" class="sm">📱</button><button data-k="down">⏬</button><button data-k="up">⏫</button></div>';
+  document.getElementById('app').appendChild(dpad);
+  dpad.querySelectorAll('button').forEach(b => {
+    const k = b.dataset.k;
+    if (k === 'tilt') { b.onclick = () => { tilt = !tilt; b.classList.toggle('on', tilt); ctx.toast(tilt ? '📱 Inclina el celular a los lados para girar' : 'Inclinación desactivada', 2200); }; return; }
+    const on = e => { e.preventDefault(); ctrl[k] = 1; }, off = () => (ctrl[k] = 0);
+    b.addEventListener('pointerdown', on); ['pointerup', 'pointerleave', 'pointercancel'].forEach(n => b.addEventListener(n, off));
+  });
+  const KEYS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
+  const kd = e => { if (KEYS[e.code]) ctrl[KEYS[e.code]] = 1; }, ku = e => { if (KEYS[e.code]) ctrl[KEYS[e.code]] = 0; };
+  addEventListener('keydown', kd); addEventListener('keyup', ku);
   const pickA = p => { const h = p.ray.intersectObjects(animals.filter(a => a.parent && a.parent.visible !== false), false); return h.length ? h[0].object : null; };
-  const refreshHint = () => ctx.hint(phase === 'drive' ? `🚤 Navegando a ${STOPS[stopI].name}… mira el paisaje` + (ctx.gyroOn() ? ' girando el celular' : ' arrastrando el dedo') : `📍 ${STOPS[stopI].tip}`);
+  const refreshHint = () => ctx.hint(phase === 'drive' ? (ctx.isHand() ? '☝️ Mueve el índice a la izquierda o derecha para girar' : '◀ ▶ para girar · ⏫ acelerar · ⏬ frenar') + ` · Ve al aro naranja: ${STOPS[stopI].name}` : `📍 ${STOPS[stopI].tip}`);
   return {
     look: true, camLock: !opt.quick, dwellTime: 0.4, refreshHint, _dbg: { setX: v => (x = v), animals },
-    start() { running = true; this.camLock = false; info(); refreshHint(); },
-    tap(p) { if (intro.on) { intro.finish(); this.camLock = false; return; } if (!running) return; const h = pickA(p); if (h) photo(h.userData.sp, h.parent); },
-    hoverable: p => (running ? pickA(p) : null),
+    start() { this.camLock = false; choosing = true; ctx.info('Elige tu vehículo'); ctx.hint((ctx.isHand() ? '☝️ Señala' : '👆 Toca') + ' la lancha rápida (izquierda) o la moto de agua (derecha)'); },
+    tap(p) {
+      if (intro.on) { intro.finish(); this.camLock = false; return; }
+      if (choosing) { const k = pickV(p); if (k) chooseVeh(k); return; }
+      if (!running) return; const h = pickA(p); if (h) photo(h.userData.sp, h.parent);
+    },
+    hoverable: p => (choosing ? pickV(p) : running ? pickA(p) : null),
     update(dt, t) {
       mixers.forEach(m => m.update(dt));
       waters.forEach(w => (w.userData.uT.value = t));
       if (intro.on) { intro.update(dt); if (!intro.on) this.camLock = false; }
       if (running && !ended) {
-        if (phase === 'drive') { const tx = STOPS[stopI].x; x = Math.min(tx, x + dt * 9); if (x >= tx) arrive(); }
+        if (phase === 'drive' && veh) {
+          const V = VEH[veh]; let steer = ctrl.left - ctrl.right;
+          if (ctx.isHand() && ctx.handVisible()) steer = clamp(-ctx.ptr.ndc.x * 1.8, -1, 1);
+          const gd = ctx.gyroData && ctx.gyroData(); if (tilt && gd) steer = clamp(-(gd.gamma || 0) / 25, -1, 1);
+          const target = ctrl.down ? -3 : ctrl.up ? V.max : V.max * 0.55;
+          v += (target - v) * Math.min(1, dt * V.acc * (ctrl.down ? 1.6 : 1));
+          psi += steer * V.turn * dt * clamp(Math.abs(v) / 4, 0, 1) * Math.sign(v || 1);
+          const px = x; x += Math.cos(psi) * v * dt; bz -= Math.sin(psi) * v * dt;
+          if (bz < -34 || bz > -10) { bz = clamp(bz, -34, -10); v *= 0.9; psi *= 0.92; if (warnT <= 0) { warnT = 3; ctx.toast('↩️ Mantente en el canal entre las boyas', 1800); } }
+          if (x < START - 8) { x = START - 8; v = Math.max(v, 0); }
+          warnT -= dt; crashT -= dt;
+          const cx = STOPS[stopI].x;
+          if (px < cx && x >= cx) { if (Math.abs(bz - RING_Z) < 4.6) arrive(); else ctx.toast('⭕ ¡Tienes que pasar por dentro del aro naranja! Da la vuelta.', 3000); }
+          for (const o of obs) {
+            if (Math.abs(o.b.position.x - x) > 8) continue;
+            const dx = x - o.b.position.x, dz = bz - o.b.position.z, d = Math.hypot(dx, dz), rr = o.r + V.r;
+            if (d < rr) { x = o.b.position.x + dx / d * rr; bz = o.b.position.z + dz / d * rr; v *= -0.35; if (crashT <= 0) { crashT = 1; crashes++; ctx.sfx('hurt'); ctx.flash(); ctx.burst(_v.set(x, 0.5, bz), [0xffffff, 0xbfefff], 25, 2.5, 5); info(); } }
+          }
+          if (eng) { eng.o.frequency.value = 45 + Math.abs(v) * 7; eng.gn.gain.value = 0.015 + Math.abs(v) / V.max * 0.05; }
+          ctx.look.yaw = -Math.PI / 2 + psi;
+        } else if (eng) eng.gn.gain.value = 0.006;
         else if (phase === 'stop') {
           stopT += dt;
-          if (stopI < 3 && !left().length) { phase = 'wait'; ctx.hint('✅ ¡Fotos listas! Ahora una pregunta…'); setTimeout(() => alive && ask(), 1500); }
-          else if (stopI < 3 && stopT > 35 && !this['tip' + stopI]) { this['tip' + stopI] = 1; ctx.toast('💡 Gira el celular (o arrastra) hacia donde apunta la flecha amarilla y toca el animal.', 5000); }
+          if (stopI < LAST && !left().length) { phase = 'wait'; ctx.hint('✅ ¡Fotos listas! Ahora una pregunta…'); setTimeout(() => alive && ask(), 1500); }
+          else if (stopI < LAST && stopT > 35 && !this['tip' + stopI]) { this['tip' + stopI] = 1; ctx.toast('💡 Gira el celular (o arrastra) hacia donde apunta la flecha amarilla y toca el animal.', 5000); }
         }
         // flecha que guía hacia el animal que falta
         let best = null, bd = 1e9;
+        if (phase === 'drive' && veh && rings[stopI]) best = rings[stopI].getWorldPosition(new V3()).setY(1.4);
         if (phase === 'stop' && left().length) for (const a of animals) if (left().includes(a.userData.sp)) { a.getWorldPosition(_w); const d = _w.distanceToSquared(camera.position); if (d < bd) { bd = d; best = _w.clone(); } }
         if (best) {
           const loc = camera.worldToLocal(best.clone()), pr = best.clone().project(camera);
@@ -1343,11 +1475,17 @@ function miami(ctx, opt) {
       if (!intro.on) camera.position.copy(seatPos());
       const shake = launched > 5 ? Math.min(1, (launched - 5) * 0.5) * Math.max(0, 1 - (launched - 9) * 0.3) : 0;
       if (shake > 0) camera.position.add(_u.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).multiplyScalar(0.03 * shake));
-      carG.position.set(x, waterY(x) - 0.15 + Math.sin(t * 1.7) * 0.06, LANE); carG.rotation.z = Math.sin(t * 1.3) * 0.025 + (phase === 'drive' && running ? 0.04 : 0); carG.rotation.x = Math.sin(t * 1.1) * 0.03;
-      if (phase === 'drive' && running && Math.random() < 0.9) { // estela y espuma de la lancha
-        ctx.burst(wakeL.set(x - 3.3, waterY(x) + 0.1, LANE + rnd(-0.6, 0.6)), [0xffffff, 0xd8f4ff], 2, 1.2, 4);
-        ctx.burst(wakeR.set(x + 3.6, waterY(x) + 0.15, LANE + (Math.random() < 0.5 ? -1 : 1)), [0xffffff], 1, 1.5, 5);
-      }
+      if (veh) {
+        const G2 = VEH[veh].g, sp = Math.abs(v);
+        G2.position.set(x, waterY(x) - 0.15 + Math.sin(t * 1.7) * 0.06, bz); G2.rotation.set(Math.sin(t * 1.1) * 0.03, psi, Math.sin(t * 1.3) * 0.025 + sp * 0.004);
+        if (sp > 1 && Math.random() < 0.9) {
+          const back = veh === 'jet' ? 1.6 : 3.3, front = veh === 'jet' ? 1.9 : 3.6;
+          ctx.burst(wakeL.set(x - Math.cos(psi) * back, waterY(x) + 0.1, bz + Math.sin(psi) * back + rnd(-0.5, 0.5)), [0xffffff, 0xd8f4ff], 2, 0.6 + sp * 0.08, 4);
+          ctx.burst(wakeR.set(x + Math.cos(psi) * front, waterY(x) + 0.15, bz - Math.sin(psi) * front), [0xffffff], 1, 0.6 + sp * 0.07, 5);
+        }
+      } else for (const [k, i] of [['boat', 0], ['jet', 1]]) { VEH[k].g.rotation.y = t * 0.5 + i * 1.5; VEH[k].g.position.y = -0.35 + Math.sin(t * 1.7 + i) * 0.06; }
+      obs.forEach(o => { o.b.position.y = -0.3 + Math.sin(t * 1.5 + o.ph) * 0.08; o.b.rotation.z = Math.sin(t + o.ph) * 0.06; });
+      rings.forEach((r, i) => { if (r.visible) r.children[0].rotation.x = t * (i % 2 ? 0.6 : -0.6); });
       sun.position.set(x + sunDir.x * 40, sunDir.y * 40, 8 + sunDir.z * 40); sun.target.position.set(x, 0, 8);
       sunM.position.set(x + sunDir.x * 330, sunDir.y * 330, sunDir.z * 330); sg.position.copy(sunM.position).multiplyScalar(0.97);
       skyM.position.set(x, 0, 0);
@@ -1386,7 +1524,7 @@ function miami(ctx, opt) {
       }
       if (running && !launched) { infoT += dt; if (infoT > 0.5) { infoT = 0; info(); } }
     },
-    dispose() { alive = false; running = false; restoreEnv(); mixers.length = 0; arrow.classList.add('hidden'); }
+    dispose() { alive = false; running = false; restoreEnv(); mixers.length = 0; arrow.classList.add('hidden'); dpad.remove(); removeEventListener('keydown', kd); removeEventListener('keyup', ku); if (eng) { try { eng.o.stop(); } catch (e) {} } }
   };
 }
 
@@ -1470,7 +1608,7 @@ function heat(ctx, opt) {
       const off = 1.6 * k, top = 0.85 + k * 0.85;
       const x = alongX ? cx : cx + out * off, z = alongX ? cz + out * off : cz;
       add(g, alongX ? box(len, 0.85, 1.6) : box(1.6, 0.85, len), k % 2 ? seat : seat2, x, top - 0.42, z, false);
-      for (let s = -len / 2 + 0.4; s < len / 2; s += 0.62) if (Math.random() < 0.86) {
+      for (let s = -len / 2 + 0.4; s < len / 2; s += 0.62) if (Math.random() < [0.4, 0.65, 0.86][Q]) {
         const r = Math.random();
         fans.push({ x: alongX ? cx + s + rnd(-0.08, 0.08) : x, top, z: alongX ? z : cz + s + rnd(-0.08, 0.08), face: face + rnd(-0.25, 0.25), pose: r < 0.5 ? 'sit' : r < 0.75 ? 'clap' : r < 0.9 ? 'stand' : 'cheer', ph: rnd(0, 6.28), k: rnd(0.92, 1.08) });
       }
@@ -1685,8 +1823,8 @@ export const GAMES = {
     fact: 'The Wizarding World of Harry Potter abrió su zona de Hogsmeade en Islands of Adventure en 2010 y Diagon Alley en Universal Studios Florida en 2014. El tren Hogwarts Express conecta ambos parques.'
   },
   miami: {
-    short: 'Tour Florida', title: '🌴 Miami y Florida — Road Trip', winMsg: '¡Has recorrido Florida!', create: miami,
-    how: h => 'Viajas de pie en una <b>lancha</b> por las aguas de Florida, así que puedes <b>girar el celular y mirar los 360°</b> como en la cancha. Hay <b>4 paradas</b>: Miami Beach → Everglades → Cayos → Cabo Cañaveral.<br>1️⃣ En cada parada la lancha se detiene. 2️⃣ Sigue la <b>flecha amarilla ➤</b> girando el celular (o arrastrando). 3️⃣ ' + (h ? '<b>Señala con tu índice</b>' : '<b>Toca</b>') + ' el animal para tomarle la foto 📸. 4️⃣ Responde una pregunta sobre Florida y el viaje sigue.<br>Fotografía 🐢 🦜 🐊 🦩 🐬 y llega a ver el despegue del cohete 🚀.',
+    short: 'Tour acuático', title: '🚤 Miami Beach — Tour acuático', winMsg: '¡Completaste el tour acuático!', create: miami,
+    how: h => 'Primero <b>elige tu vehículo</b>: lancha rápida o moto de agua. Después <b>conduce</b> por la bahía y los canales de Florida: ' + (h ? 'mueve tu <b>índice</b> a la izquierda o derecha para girar' : 'usa <b>◀ ▶</b> para girar, <b>⏫</b> para acelerar y <b>⏬</b> para frenar (en computador, las flechas del teclado; 📱 activa girar inclinando el celular)') + '. Pasa por dentro de los <b>5 aros naranjas</b> y esquiva las boyas y las lanchas. En cada aro te detienes: fotografía la fauna que se pide 📸 y responde una pregunta. Al final verás el despegue de un cohete 🚀.',
     fact: 'Florida es conocida como “The Sunshine State” (el Estado del Sol). Recorriste Miami Beach, los Everglades, la Overseas Highway de los Cayos y la Costa Espacial.'
   },
   heat: {
@@ -1697,3 +1835,6 @@ export const GAMES = {
     fact: 'El Miami Heat entró a la NBA en 1988 como equipo de expansión y ha ganado tres campeonatos: 2006, 2012 y 2013.'
   }
 };
+
+export { M, B, temp, keep, add, box, cyl, sph, cone, cap, smooth, easeOut, rnd, pick, canvasTex, rep, glow, glowTex, textTex, label, sky, lightRig, envFromSky, withIntro,
+  person, walkAnim, clapAnim, idleAnim, stripedMat, stripesTex, waterMat, palm, decoBuilding, car, lifeguard, spawnGLB, ballMat, SKINS, Q };

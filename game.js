@@ -2,17 +2,21 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { startHands, stopHands } from './handTracking.js';
-import { createHub, GAMES, Sparks, starMesh, disposeTree } from './scenes.js';
+import { createHub, GAMES as G1, Sparks, starMesh, disposeTree, setQuality } from './scenes.js';
+import { GAMES2 } from './scenes2.js';
+import { startFoot, stopFoot, foot } from './footTracking.js';
+const GAMES = { ...G1, ...GAMES2 };
+const ORDER = [['orlando', '🏰'], ['heroes', '🦸'], ['city', '🌆'], ['miami', '🚤'], ['heat', '🏀'], ['fg', '🏈'], ['penalty', '⚽']];
 
 const $ = id => document.getElementById(id);
 const video = $('cam');
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
-const S = { mode: 'touch', stars: { orlando: 0, miami: 0, heat: 0 }, sound: true, cam: false, mirror: false, pts: false, key: null, scene: null };
+const S = { mode: 'touch', stars: Object.fromEntries(ORDER.map(([k]) => [k, 0])), quality: isMobile ? 1 : 2, sound: true, cam: false, mirror: false, pts: false, key: null, scene: null };
 const EYE = 1.6;
 
 /* ================= 3D ================= */
 const renderer = new THREE.WebGLRenderer({ canvas: $('scene'), alpha: true, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, isMobile ? 1.75 : 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, isMobile ? 1.5 : 2));
 renderer.setClearColor(0x000000, 0);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -257,9 +261,10 @@ function setInfo(t) { $('info').innerHTML = t || ''; $('info').classList.toggle(
 function setHint(t) { $('hint').innerHTML = t || ''; $('hint').classList.toggle('hidden', !t); }
 function flash() { const f = $('flash'); f.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on'))); }
 function fade(on) { $('fade').classList.toggle('on', on); }
-const NAMES = [['orlando', '🏰', 'Orlando'], ['miami', '🌴', 'Tour Florida'], ['heat', '🏀', 'Miami Heat']];
+const NAMES = ORDER;
 function updateStars() {
-  $('stars').innerHTML = NAMES.map(([k, i, n]) => `<span class="chip ${S.stars[k] ? 'got' : ''}">${i} ${n}: ${S.stars[k]}/1${S.stars[k] ? ' ⭐' : ''}</span>`).join('');
+  const n = ORDER.filter(([k]) => S.stars[k]).length;
+  $('stars').innerHTML = `<span class="chip ${n === 7 ? 'got' : ''}">⭐ ${n}/7</span>` + ORDER.map(([k, i]) => `<span class="chip mini ${S.stars[k] ? 'got' : ''}" title="${GAMES[k].short}">${i}${S.stars[k] ? '⭐' : ''}</span>`).join('');
 }
 function refreshTools() {
   $('bBack').style.visibility = S.key && S.key !== 'hub' ? 'visible' : 'hidden';
@@ -269,6 +274,45 @@ function refreshTools() {
   $('bSound').textContent = S.sound ? '🔊' : '🔇';
 }
 
+/* ================= Punta del zapato (MediaPipe Pose) ================= */
+let footOn = false; const fh = []; let kickCD = 0, footSeen = 0, footWarned = false;
+const fp = { x: innerWidth / 2, y: innerHeight / 2 };
+async function beginFoot(side) {
+  foot.side = side; if (handsOn) { stopHands(); handsOn = false; hand.present = false; }
+  toast('Cargando detector de pies…', 15000);
+  try {
+    await startFoot(video, onFoot); footOn = true; footSeen = performance.now(); footWarned = false; $('footbar').classList.remove('hidden');
+    toast('🦶 Apunta la cámara a tus pies: verás un punto amarillo en la punta del zapato. Quédate quieto y luego patea.', 6000);
+  } catch (e) { console.warn(e); toast('No se pudo activar el detector de pies. Juega deslizando el dedo.', 5000); }
+  S.scene && S.scene.start();
+}
+function endFoot() {
+  if (!footOn) return; footOn = false; stopFoot(); $('footbar').classList.add('hidden'); $('cursor').style.opacity = 0;
+  if (S.mode === 'hand' && !handsOn) startHands(video, onHand).then(() => (handsOn = true)).catch(() => {});
+}
+function onFoot(r) {
+  if (!footOn) return;
+  const cur = $('cursor'), now = performance.now();
+  if (!r.present) { cur.style.opacity = 0; return; }
+  footSeen = now;
+  const [tx, ty] = toScreen(r.x, r.y, 1);
+  const a = THREE.MathUtils.clamp(0.35 + Math.hypot(tx - fp.x, ty - fp.y) / 160, 0.35, 0.9);
+  fp.x += (tx - fp.x) * a; fp.y += (ty - fp.y) * a;
+  cur.style.opacity = 1; cur.style.transform = `translate(${fp.x}px,${fp.y}px)`; cur.classList.remove('pinch');
+  fh.push({ x: fp.x / innerWidth * 2 - 1, y: -(fp.y / innerHeight) * 2 + 1, t: now }); while (fh.length && now - fh[0].t > 900) fh.shift();
+  const seg = (t0, t1) => { const A = fh.filter(q => now - q.t <= t0 && now - q.t >= t1); if (A.length < 2) return null; const p = A[0], q = A[A.length - 1], dt = Math.max((q.t - p.t) / 1000, 0.03); return { x: (q.x - p.x) / dt, y: (q.y - p.y) / dt }; };
+  const v = seg(140, 0), before = seg(800, 250);
+  if (!v || !before) return;
+  const sp = Math.hypot(v.x, v.y), calm = Math.hypot(before.x, before.y) < 0.9; // patada = movimiento rápido después de estar quieto
+  if (now > kickCD && sp > 2.2 && calm && S.scene && S.scene.kick && !blocked()) {
+    kickCD = now + 1800; if (navigator.vibrate) navigator.vibrate(30);
+    S.scene.kick({ x: v.x, y: sp });
+  }
+}
+setInterval(() => { if (footOn && !footWarned && performance.now() - footSeen > 7000) { footWarned = true; toast('No veo tu pie 🦶 Apunta la cámara a tus zapatos con buena luz, o vuelve con ← y elige "deslizar el dedo".', 6000); } }, 2000);
+$('fUp').onclick = () => { foot.ext = Math.min(0.9, foot.ext + 0.1); toast('Punto más hacia la punta', 1200); };
+$('fDn').onclick = () => { foot.ext = Math.max(-0.2, foot.ext - 0.1); toast('Punto más hacia el talón', 1200); };
+
 /* ================= Escenas ================= */
 const ctx = {
   root, camera, scene, renderer, ptr, sfx, toast, flash, card, stars: S.stars, EYE, look, isMobile,
@@ -276,7 +320,7 @@ const ctx = {
   burst: (p, c, n, sp) => sparks.emit(p, c, n, sp),
   isHand: () => S.mode === 'hand',
   handVisible: () => S.mode === 'hand' && hand.present,
-  gyroOn: () => gyro.on && !!gyro.data,
+  gyroOn: () => gyro.on && !!gyro.data, gyroData: () => gyro.data, GAMES, audio: () => (S.sound && ac ? ac : null), footOn: () => footOn,
   enter: (k, o) => enter(k, o), win: k => win(k), lose: m => lose(m), ready: () => ready()
 };
 let winStar = null, winT = 0;
@@ -284,6 +328,7 @@ function enter(key, opt = {}) {
   fade(true);
   setTimeout(() => {
     if (S.scene && S.scene.dispose) S.scene.dispose();
+    if (!GAMES[key] || !GAMES[key].foot) endFoot();
     for (const c of [...root.children]) { root.remove(c); disposeTree(c); }
     scene.fog = null; winStar = null; drag = null; dwell.key = null;
     setInfo(''); setHint(''); $('crosshair').classList.add('hidden'); $('arrow').classList.add('hidden');
@@ -297,8 +342,12 @@ function enter(key, opt = {}) {
 }
 function ready() { // la escena terminó su intro: mostrar instrucciones
   const G = GAMES[S.key];
+  const play = G.foot ? [
+    ...(S.cam ? [{ label: '🦶 Patear con el pie derecho', primary: true, fn: () => beginFoot('right') }, { label: '🦶 Patear con el pie izquierdo', fn: () => beginFoot('left') }] : []),
+    { label: '👆 Jugar deslizando el dedo', primary: !S.cam, fn: () => { endFoot(); S.scene.start(); } }
+  ] : [{ label: '¡Jugar!', primary: true, fn: () => S.scene.start() }];
   card(G.title, `<p>${G.how(S.mode === 'hand')}</p>`, [
-    { label: '¡Jugar!', primary: true, fn: () => S.scene.start() },
+    ...play,
     { label: 'Volver a los destinos', fn: () => enter('hub', { opened: true }) }
   ]);
 }
@@ -328,7 +377,7 @@ function finale() {
       sparks.emit(camera.localToWorld(new THREE.Vector3(Math.random() * 1.6 - 0.8, Math.random() * 1.2 - 0.3, -2.5)), [0xff4fa3, 0xffd54a, 0x24d1ff, 0x7bff6a, 0xff3b30], 40, 2.2);
       if (++n > 14) clearInterval(iv);
     }, 180);
-    card('¡FELICIDADES! HAS COMPLETADO TU AVENTURA POR FLORIDA', '<div class="bigstar">⭐⭐⭐</div><p>Conquistaste Orlando, exploraste Miami y brillaste con el Miami Heat.</p>',
+    card('¡FELICIDADES! HAS COMPLETADO TU TOUR POR FLORIDA', '<div class="bigstar">⭐⭐⭐⭐⭐⭐⭐</div><p>Visitaste los parques de Orlando, recorriste Miami por tierra y por agua, y jugaste baloncesto, fútbol americano y fútbol.</p>',
       [{ label: 'Volver a jugar', primary: true, fn: replay }]);
   }, 400);
 }
@@ -433,3 +482,12 @@ renderer.setAnimationLoop(() => {
 });
 updateStars();
 if (location.search.includes('debug')) window.__fl = { S, enter, ctx, camera, root, look };
+
+// Calidad: bajo / medio / alto (resolución y sombras)
+function applyQuality(q) {
+  S.quality = q; setQuality(q);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, [1, 1.5, 2][q])); renderer.shadowMap.enabled = q > 0; resize();
+  document.querySelectorAll('.qbtn').forEach(b => b.classList.toggle('on', +b.dataset.q === q));
+}
+document.querySelectorAll('.qbtn').forEach(b => (b.onclick = () => { applyQuality(+b.dataset.q); toast(['Calidad baja: más fluido', 'Calidad media', 'Calidad alta: más detalle'][+b.dataset.q], 1600); }));
+applyQuality(S.quality);
