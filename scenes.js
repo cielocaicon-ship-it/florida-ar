@@ -1092,7 +1092,8 @@ function roadSign(g, x, z, txt, bg, fg = '#fff') {
 }
 
 /* ================= MUNDO 2: ROAD TRIP POR FLORIDA ================= */
-const LANE = 13.6, START = -60, END = 445;
+const LANE = -22, START = -60, END = 445;
+const waterY = x => -0.3 + 0.32 * smooth((x - 372) / 14);
 const roadY = x => 2.2 * (smooth((x - 222) / 20) - smooth((x - 358) / 20));
 function miami(ctx, opt) {
   const { camera, scene } = ctx, g = new THREE.Group(); ctx.root.add(g);
@@ -1126,7 +1127,7 @@ function miami(ctx, opt) {
   const foam = add(Z1, new THREE.PlaneGeometry(240, 1.6), foamM, -20, 0.02, -14, false); foam.rotation.x = -Math.PI / 2;
   const sandT = rep(canvasTex(256, 256, (c, w, h) => { c.fillStyle = '#e8d2a2'; c.fillRect(0, 0, w, h); for (let i = 0; i < 9000; i++) { c.fillStyle = Math.random() < 0.5 ? 'rgba(170,140,90,.25)' : 'rgba(255,250,235,.35)'; c.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5); } }), 40, 6);
   const sand = add(Z1, new THREE.PlaneGeometry(240, 24), temp(new THREE.MeshStandardMaterial({ map: sandT, roughness: 1 })), -20, 0, -3, false); sand.rotation.x = -Math.PI / 2; sand.receiveShadow = true;
-  const wet = add(Z1, new THREE.PlaneGeometry(240, 6), M(0xb39a6c, { roughness: 0.35 }), -20, -0.4, -16.6, false); wet.rotation.x = -Math.PI / 2 + 0.13;
+  const wet = add(Z1, new THREE.PlaneGeometry(240, 6), M(0xb39a6c, { roughness: 0.35 }), -20, -0.62, -16.6, false); wet.rotation.x = -Math.PI / 2 + 0.13;
   add(Z1, box(240, 0.25, 3), M(0xf3c6c6, { roughness: 0.9 }), -20, 0.12, 10);
   add(Z1, box(240, 0.25, 2.5), M(0xe9e0d6, { roughness: 0.9 }), -20, 0.12, 20.5);
   const NEON = [0xff4fa3, 0x24d1ff, 0x7bff6a, 0xffb000, 0xb36bff], DCOL = [0xffc2d1, 0xa8ece6, 0xfff1b8, 0xd6c6ff, 0xffd3b0, 0xbfe6ff];
@@ -1141,11 +1142,11 @@ function miami(ctx, opt) {
     add(Z1, cone(1.6, 0.6, 16), stripedMat(a, b, 16), x, 2.4, z);
   }
   const traffic = [[0xff4fa3, -30, 17.4, -6], [0x24d1ff, 20, 17.4, -6], [0xffe14d, 60, 17.4, -6]].map(a => car(Z1, ...a));
-  roadSign(Z1, -40, 21, '📍 MIAMI BEACH', '#0a7a3a');
+  roadSign(Z1, -40, -14, '📍 MIAMI BEACH', '#0a7a3a');
   const turtles = [];
   for (const [x, z] of [[-9, -3], [-3, -5], [4, -2], [10, -4], [16, -3]]) { const t = addAnimal(turtle(), '🐢', 1.6); t.scale.setScalar(1.4); t.position.set(x, 0.02, z); t.rotation.y = Math.PI; Z1.add(t); turtles.push(t); }
   const birds = [];
-  for (let i = 0; i < 6; i++) { const b = spawnGLB('Parrot.glb', Z1, mixers, { s: 0.012 }); addAnimal(b, '🦜', 2.2); b.userData = { ...b.userData, r: rnd(4, 8), h: rnd(5, 9), cx: rnd(-14, 14), cz: rnd(4, 10), sp: rnd(0.35, 0.6) * (Math.random() < 0.5 ? 1 : -1), ph: rnd(0, 6) }; birds.push(b); }
+  for (let i = 0; i < 6; i++) { const b = spawnGLB('Parrot.glb', Z1, mixers, { s: 0.012 }); addAnimal(b, '🦜', 2.2); b.userData = { ...b.userData, r: rnd(4, 8), h: rnd(5, 9), cx: rnd(-14, 14), cz: rnd(-8, 0), sp: rnd(0.35, 0.6) * (Math.random() < 0.5 ? 1 : -1), ph: rnd(0, 6) }; birds.push(b); }
 
   /* ----- Zona 2: Everglades ----- */
   const Z2 = zone(150);
@@ -1155,25 +1156,25 @@ function miami(ctx, opt) {
   const grassG = keep(new THREE.ConeGeometry(0.07, 1.4, 4)), grassM = temp(new THREE.MeshStandardMaterial({ roughness: 1 }));
   const NG = 1600, sawI = new THREE.InstancedMesh(grassG, grassM, NG), m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), col = new THREE.Color();
   for (let i = 0; i < NG; i++) {
-    let x, z; do { x = rnd(82, 228); z = rnd(-70, 90); } while (Math.abs(z - 15.5) < 8);
+    let x, z; do { x = rnd(82, 228); z = rnd(-70, 90); } while (Math.abs(z - 15.5) < 8 || Math.abs(z + 22) < 7);
     q4.setFromEuler(new THREE.Euler(rnd(-0.2, 0.2), 0, rnd(-0.2, 0.2))); m4.compose(_v.set(x, 0.3, z), q4, _u.set(1, rnd(0.6, 1.4), 1)); sawI.setMatrixAt(i, m4);
     sawI.setColorAt(i, col.setHSL(rnd(0.15, 0.22), 0.5, rnd(0.3, 0.5)));
   }
   Z2.add(sawI);
-  for (let i = 0; i < 28; i++) { let z; do { z = rnd(-60, 80); } while (Math.abs(z - 15.5) < 10); cypress(Z2, rnd(85, 225), z, rnd(0.9, 1.4)); }
+  for (let i = 0; i < 28; i++) { let z; do { z = rnd(-60, 80); } while (Math.abs(z - 15.5) < 10 || Math.abs(z + 22) < 9); cypress(Z2, rnd(85, 225), z, rnd(0.9, 1.4)); }
   const gators = [];
-  for (const [x, z, swim] of [[120, 5, 1], [136, 6, 1], [142, 25, 0], [150, 7, 0], [156, 26, 1], [163, 5, 1], [170, 24, 0], [190, 26, 1]]) {
+  for (const [x, z, swim] of [[120, -14, 1], [136, -31, 1], [142, -12, 0], [150, -33, 0], [156, -13, 1], [163, -30, 1], [170, -11, 0], [190, -32, 1]]) {
     const a = addAnimal(gator(), '🐊', 2); a.scale.setScalar(1.6); a.position.set(x, swim ? -0.32 : 0.05, z); a.rotation.y = rnd(0, 6.28); a.userData.swim = swim; a.userData.ph = rnd(0, 6);
     if (!swim) add(Z2, cyl(2.6, 2.8, 0.4, 20), M(0x5a4a30, { roughness: 1 }), x, -0.15, z);
     Z2.add(a); gators.push(a);
   }
-  for (let i = 0; i < 7; i++) { const b = spawnGLB('Flamingo.glb', Z2, mixers, { s: 0.014 }); addAnimal(b, '🦩', 2.8); b.userData = { ...b.userData, r: rnd(7, 13), h: rnd(4, 8), cx: rnd(140, 160), cz: rnd(-4, 30), sp: rnd(0.25, 0.4), ph: i * 0.9 }; birds.push(b); }
+  for (let i = 0; i < 7; i++) { const b = spawnGLB('Flamingo.glb', Z2, mixers, { s: 0.014 }); addAnimal(b, '🦩', 2.8); b.userData = { ...b.userData, r: rnd(7, 13), h: rnd(4, 8), cx: rnd(140, 160), cz: rnd(-34, -10), sp: rnd(0.25, 0.4), ph: i * 0.9 }; birds.push(b); }
   const airboat = new THREE.Group(); airboat.position.set(130, -0.15, -8); Z2.add(airboat);
   add(airboat, box(4, 0.5, 2), M(0xdddddd, { metalness: 0.6, roughness: 0.3 }), 0, 0.2, 0);
   add(airboat, new THREE.TorusGeometry(1.1, 0.06, 8, 24), M(0x333333, { metalness: 0.8 }), -1.6, 1.5, 0).rotation.y = Math.PI / 2;
   const prop = add(airboat, box(0.1, 2, 0.2), M(0x222222), -1.6, 1.5, 0); prop.rotation.y = 0;
   const pilot = person({ top: 0x2c6e49, bottom: 0x8a7a5a, sleeves: true }); pilot.p.position.set(0.5, 0.45, 0); pilot.p.rotation.y = Math.PI / 2; airboat.add(pilot.p);
-  roadSign(Z2, 92, 21, '📍 EVERGLADES', '#6b4a2a');
+  roadSign(Z2, 92, -14, '📍 EVERGLADES', '#6b4a2a');
 
   /* ----- Zona 3: Cayos de Florida ----- */
   const Z3 = zone(305);
@@ -1183,7 +1184,7 @@ function miami(ctx, opt) {
   for (let i = 0; i < 30; i++) { const p = add(Z3, new THREE.CircleGeometry(rnd(2, 6), 12), M(0x3a6a3a, { roughness: 1 }), rnd(225, 385), -1.55, rnd(-150, 150), false); p.rotation.x = -Math.PI / 2; }
   for (let x = 245; x < 358; x += 12) { add(Z3, cyl(0.6, 0.7, 4.2, 12), M(0xd8d4cc, { roughness: 0.9 }), x, 0, 13.5); add(Z3, cyl(0.6, 0.7, 4.2, 12), M(0xd8d4cc, { roughness: 0.9 }), x, 0, 17.5); }
   for (const z of [11.6, 19.4]) add(Z3, box(116, 0.8, 0.25), M(0xeeeeee, { roughness: 0.6 }), 300, 2.5, z);
-  for (const [x, z, r] of [[262, -25, 7], [300, 45, 10], [335, -35, 8], [350, 32, 7]]) {
+  for (const [x, z, r] of [[262, -48, 7], [300, 45, 10], [335, -52, 8], [350, 32, 7]]) {
     add(Z3, cyl(r, r + 1.5, 0.8, 24), M(0xeadbb0, { roughness: 1 }), x, -0.1, z);
     for (let k = 0; k < 4; k++) palm(Z3, x + rnd(-r * 0.6, r * 0.6), z + rnd(-r * 0.6, r * 0.6), 1, rnd(6, 8));
   }
@@ -1197,16 +1198,16 @@ function miami(ctx, opt) {
   const buoyT = canvasTex(512, 256, (q, w, h) => { q.fillStyle = '#111'; q.fillRect(0, 0, w, h * 0.18); q.fillStyle = '#d4202a'; q.fillRect(0, h * 0.18, w, h * 0.22); q.fillStyle = '#f2c230'; q.fillRect(0, h * 0.4, w, h * 0.32); q.fillStyle = '#111'; q.fillRect(0, h * 0.72, w, h * 0.28); q.fillStyle = '#111'; q.font = 'bold 30px system-ui'; q.textAlign = 'center'; q.fillText('PUNTO MÁS AL SUR · EE. UU.', w / 4, h * 0.53); q.fillText('KEY WEST · 90 MILLAS A CUBA', w / 4, h * 0.66); q.fillText('PUNTO MÁS AL SUR · EE. UU.', w * 0.75, h * 0.53); q.fillText('KEY WEST · 90 MILLAS A CUBA', w * 0.75, h * 0.66); });
   add(Z3, new THREE.LatheGeometry([new V2(0.001, 3.8), new V2(0.9, 3.7), new V2(1.2, 3.2), new V2(1.5, 1), new V2(1.7, 0)], 28), temp(new THREE.MeshStandardMaterial({ map: buoyT, roughness: 0.6 })), 350, 0.3, 32);
   const dolphins = [];
-  for (let i = 0; i < 5; i++) { const d = addAnimal(dolphin(), '🐬', 2.2); d.userData.ph = i * 1.3; d.scale.setScalar(1.3); d.userData.x0 = 278 + i * 8; d.userData.z0 = i % 2 ? 4 : 27; Z3.add(d); dolphins.push(d); }
+  for (let i = 0; i < 5; i++) { const d = addAnimal(dolphin(), '🐬', 2.2); d.userData.ph = i * 1.3; d.scale.setScalar(1.3); d.userData.x0 = 278 + i * 8; d.userData.z0 = i % 2 ? -13 : -31; Z3.add(d); dolphins.push(d); }
   for (let i = 0; i < 5; i++) { const b = spawnGLB('Flamingo.glb', Z3, mixers, { s: 0.014 }); addAnimal(b, '🦩', 2.8); b.userData = { ...b.userData, r: rnd(12, 20), h: rnd(8, 12), cx: rnd(270, 330), cz: rnd(-20, 40), sp: rnd(0.25, 0.4), ph: i * 1.1 }; birds.push(b); }
   const boats = [];
-  for (const [x, z] of [[270, -40], [320, 60], [345, -55]]) {
+  for (const [x, z] of [[270, -70], [320, 60], [345, -75]]) {
     const b = new THREE.Group(); b.position.set(x, -0.2, z); Z3.add(b);
     add(b, box(5, 0.9, 1.8), M(0xffffff, { roughness: 0.4 }), 0, 0.3, 0); add(b, cyl(0.07, 0.07, 7, 6), M(0xcccccc), 0, 4, 0);
     const ss = new THREE.Shape(); ss.moveTo(0, 0); ss.lineTo(0, 6); ss.lineTo(2.8, 0.2); ss.lineTo(0, 0);
     add(b, new THREE.ShapeGeometry(ss), M(0xfafafa, { side: THREE.DoubleSide, roughness: 0.9 }), 0.1, 1, 0); b.userData.ph = rnd(0, 6); boats.push(b);
   }
-  roadSign(Z3, 228, 21, '📍 OVERSEAS HIGHWAY · CAYOS', '#0a5a8a');
+  roadSign(Z3, 228, -14, '📍 OVERSEAS HIGHWAY · CAYOS', '#0a5a8a');
 
   /* ----- Zona 4: Cabo Cañaveral ----- */
   const Z4 = zone(450);
@@ -1231,20 +1232,26 @@ function miami(ctx, opt) {
   rl.rotation.y = 0;
   add(Z4, box(60, 70, 50), M(0x9a9a9a, { roughness: 0.9 }), 430, 35, -150);
   add(Z4, new THREE.PlaneGeometry(26, 15), stripedMat('#b22234', '#ffffff', 13, false), 430, 45, -124.9, false);
-  roadSign(Z4, 382, 21, '📍 CABO CAÑAVERAL · COSTA ESPACIAL', '#1d2f6b');
+  roadSign(Z4, 382, -14, '📍 CABO CAÑAVERAL · COSTA ESPACIAL', '#1d2f6b');
   const smoke = [];
   const smokeM = temp(new THREE.SpriteMaterial({ map: glowTex(), color: 0xd8d8d8, transparent: true, opacity: 0.85, depthWrite: false }));
   const flameS = glow(0xffb040, 1, 0); flameS.position.set(0, -2, 0); rocket.add(flameS);
 
-  /* ----- Plataforma abierta del trolley turístico: nada te tapa la vista al girar ----- */
+  /* ----- Lancha turística: vas de pie en la cubierta, nada te tapa la vista ----- */
   const carG = new THREE.Group(); g.add(carG);
-  const paint = M(0xd8102e, { metalness: 0.5, roughness: 0.3 }), chrome = M(0xdddddd, { metalness: 1, roughness: 0.2 });
-  add(carG, box(5, 0.35, 2.6), paint, 0, 0.55, 0);
-  add(carG, box(5, 0.04, 2.5), M(0x8a6a48, { roughness: 0.8 }), 0, 0.75, 0, false);
-  for (const z of [-1.25, 1.25]) add(carG, box(5, 0.05, 0.05), chrome, 0, 1.15, z, false);
-  for (const xx of [-2.45, 2.45]) add(carG, box(0.05, 0.05, 2.5), chrome, xx, 1.15, 0, false);
-  for (const xx of [-2.4, -0.8, 0.8, 2.4]) for (const z of [-1.25, 1.25]) add(carG, cyl(0.025, 0.025, 0.4, 6), chrome, xx, 0.95, z, false);
-  for (const wx of [-1.7, 1.7]) for (const wz of [-1.1, 1.1]) { const w = add(carG, cyl(0.4, 0.4, 0.3, 20), M(0x111111), wx, 0.4, wz); w.rotation.x = Math.PI / 2; }
+  const hs = new THREE.Shape(); hs.moveTo(-3, -1.2); hs.lineTo(1.6, -1.2); hs.quadraticCurveTo(3, -1, 3.8, 0); hs.quadraticCurveTo(3, 1, 1.6, 1.2); hs.lineTo(-3, 1.2); hs.lineTo(-3, -1.2);
+  const hullG = new THREE.ExtrudeGeometry(hs, { depth: 0.9, bevelEnabled: true, bevelSize: 0.12, bevelThickness: 0.12, bevelSegments: 2 }); hullG.rotateX(-Math.PI / 2);
+  add(carG, hullG, M(0xffffff, { roughness: 0.35, metalness: 0.1 }), 0, -0.2, 0);
+  const stripeG = new THREE.ExtrudeGeometry(hs, { depth: 0.12, bevelEnabled: false }); stripeG.rotateX(-Math.PI / 2); const st2 = add(carG, stripeG, M(0x1d6fd8, { roughness: 0.4 }), 0, 0.42, 0, false); st2.scale.set(1.03, 1, 1.06);
+  const deckG = new THREE.ShapeGeometry(hs); deckG.rotateX(-Math.PI / 2); add(carG, deckG, M(0x9a6a3e, { roughness: 0.8 }), 0, 0.72, 0, false).scale.set(0.95, 1, 0.92);
+  const chrome = M(0xdddddd, { metalness: 1, roughness: 0.2 });
+  for (const z of [-1.15, 1.15]) add(carG, box(4.6, 0.04, 0.04), chrome, -0.6, 1.25, z, false);
+  for (const xx of [-2.8, -1.4, 0, 1.4]) for (const z of [-1.15, 1.15]) add(carG, cyl(0.02, 0.02, 0.5, 6), chrome, xx, 1.0, z, false);
+  add(carG, box(0.06, 0.35, 1.6), M(0xbfe6ff, { transparent: true, opacity: 0.35, roughness: 0.05, metalness: 0.3 }), 2.2, 0.95, 0, false);
+  const motor = new THREE.Group(); motor.position.set(-3.2, 0.5, 0); carG.add(motor);
+  add(motor, box(0.6, 0.7, 0.5), M(0x222222, { roughness: 0.4, metalness: 0.3 }), 0, 0.2, 0); add(motor, box(0.15, 1.1, 0.15), M(0x333333), 0, -0.6, 0);
+  const capt = person({ top: 0xffffff, bottom: 0x1d2f6b, sleeves: true, hairStyle: 'short' }); capt.p.position.set(-2.6, 0.72, -0.5); capt.p.rotation.y = Math.PI / 2; capt.arms[1].sh.rotation.x = -0.7; carG.add(capt.p);
+  const wakeL = new V3(), wakeR = new V3();
   let alive = true, running = false, x = START, launched = 0, ended = false, zoneIdx = -1, infoT = 0, waveT = 0;
   const shots = new Set();
   const SP = { '🐢': 'Tortuga marina', '🦜': 'Loro silvestre', '🐊': 'Caimán americano', '🦩': 'Flamenco americano', '🐬': 'Delfín nariz de botella' };
@@ -1262,7 +1269,7 @@ function miami(ctx, opt) {
     '📍 Cabo Cañaveral — desde el Centro Espacial Kennedy despegó el Apolo 11 hacia la Luna en 1969.'
   ];
   const STOPS = [
-    { x: 0, name: 'Miami Beach', need: ['🐢', '🦜'], tip: 'Busca 🐢 tortugas en la arena (a tu izquierda) y 🦜 loros volando sobre las palmeras',
+    { x: 0, name: 'Miami Beach', need: ['🐢', '🦜'], tip: 'Busca 🐢 tortugas en la arena de la playa (a tu derecha) y 🦜 loros volando sobre las palmeras',
       q: '¿De qué estilo son los edificios famosos de Miami Beach?', o: ['Gótico', 'Art Déco', 'Barroco'], a: 1 },
     { x: 150, name: 'Everglades', need: ['🐊', '🦩'], tip: 'Busca 🐊 caimanes en el agua y en las orillas, y 🦩 flamencos volando',
       q: '¿Qué tiene de único el sur de Florida?', o: ['Tiene volcanes activos', 'Caimanes y cocodrilos viven juntos en libertad', 'Nieva todo el año'], a: 1 },
@@ -1275,7 +1282,7 @@ function miami(ctx, opt) {
   const arrow = document.getElementById('arrow');
   const left = () => STOPS[stopI].need.filter(k => !shots.has(k));
   const info = () => ctx.info(phase === 'drive'
-    ? `🚗 Rumbo a ${STOPS[stopI].name} · 📸 ${shots.size}/5`
+    ? `🚤 Navegando a ${STOPS[stopI].name} · 📸 ${shots.size}/5`
     : `📍 Parada ${stopI + 1}/4 · ${STOPS[stopI].name} · 📸 ${shots.size}/5 ${Object.keys(SP).map(k => shots.has(k) ? '✅' : k).join('')}`);
   function arrive() {
     phase = 'stop'; stopT = 0; ctx.sfx('portal'); info();
@@ -1292,11 +1299,11 @@ function miami(ctx, opt) {
     } })));
   }
   const seat = new V3();
-  const seatPos = () => seat.set(x, roadY(x) + 2.35, LANE);
+  const seatPos = () => seat.set(x + 0.6, waterY(x) + 2.35 + Math.sin(performance.now() / 600) * 0.06, LANE);
   const intro = withIntro(ctx, opt, [
     { t: 0, p: [-95, 30, -30], yaw: -2.2, pitch: -0.4 },
-    { t: 3.8, p: [START - 10, 6, 6], yaw: -1.8, pitch: -0.2 },
-    { t: 5.5, p: [START, 2.35, LANE], yaw: -Math.PI / 2, pitch: -0.05 }
+    { t: 3.8, p: [START - 12, 7, LANE - 8], yaw: -1.2, pitch: -0.2 },
+    { t: 5.5, p: [START + 0.6, 2.05, LANE], yaw: -Math.PI / 2, pitch: -0.05 }
   ], -Math.PI / 2, -0.05);
   function photo(sp, obj) {
     ctx.sfx('shutter');
@@ -1307,7 +1314,7 @@ function miami(ctx, opt) {
     ctx.toast(`📸 ¡${SP[sp]}! ${FACT[sp]}`, 5000);
   }
   const pickA = p => { const h = p.ray.intersectObjects(animals.filter(a => a.parent && a.parent.visible !== false), false); return h.length ? h[0].object : null; };
-  const refreshHint = () => ctx.hint(phase === 'drive' ? `🚗 Viajando a ${STOPS[stopI].name}… mira el paisaje` + (ctx.gyroOn() ? ' girando el celular' : ' arrastrando el dedo') : `📍 ${STOPS[stopI].tip}`);
+  const refreshHint = () => ctx.hint(phase === 'drive' ? `🚤 Navegando a ${STOPS[stopI].name}… mira el paisaje` + (ctx.gyroOn() ? ' girando el celular' : ' arrastrando el dedo') : `📍 ${STOPS[stopI].tip}`);
   return {
     look: true, camLock: !opt.quick, dwellTime: 0.4, refreshHint, _dbg: { setX: v => (x = v), animals },
     start() { running = true; this.camLock = false; info(); refreshHint(); },
@@ -1336,7 +1343,11 @@ function miami(ctx, opt) {
       if (!intro.on) camera.position.copy(seatPos());
       const shake = launched > 5 ? Math.min(1, (launched - 5) * 0.5) * Math.max(0, 1 - (launched - 9) * 0.3) : 0;
       if (shake > 0) camera.position.add(_u.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).multiplyScalar(0.03 * shake));
-      carG.position.set(x, roadY(x), LANE); carG.rotation.z = Math.atan2(roadY(x + 1) - roadY(x - 1), 2);
+      carG.position.set(x, waterY(x) - 0.15 + Math.sin(t * 1.7) * 0.06, LANE); carG.rotation.z = Math.sin(t * 1.3) * 0.025 + (phase === 'drive' && running ? 0.04 : 0); carG.rotation.x = Math.sin(t * 1.1) * 0.03;
+      if (phase === 'drive' && running && Math.random() < 0.9) { // estela y espuma de la lancha
+        ctx.burst(wakeL.set(x - 3.3, waterY(x) + 0.1, LANE + rnd(-0.6, 0.6)), [0xffffff, 0xd8f4ff], 2, 1.2, 4);
+        ctx.burst(wakeR.set(x + 3.6, waterY(x) + 0.15, LANE + (Math.random() < 0.5 ? -1 : 1)), [0xffffff], 1, 1.5, 5);
+      }
       sun.position.set(x + sunDir.x * 40, sunDir.y * 40, 8 + sunDir.z * 40); sun.target.position.set(x, 0, 8);
       sunM.position.set(x + sunDir.x * 330, sunDir.y * 330, sunDir.z * 330); sg.position.copy(sunM.position).multiplyScalar(0.97);
       skyM.position.set(x, 0, 0);
@@ -1675,7 +1686,7 @@ export const GAMES = {
   },
   miami: {
     short: 'Tour Florida', title: '🌴 Miami y Florida — Road Trip', winMsg: '¡Has recorrido Florida!', create: miami,
-    how: h => 'Viajas de pie en un trolley turístico abierto, así que puedes <b>girar el celular y mirar los 360°</b> como en la cancha. Hay <b>4 paradas</b>: Miami Beach → Everglades → Cayos → Cabo Cañaveral.<br>1️⃣ En cada parada el auto se detiene. 2️⃣ Sigue la <b>flecha amarilla ➤</b> girando el celular (o arrastrando). 3️⃣ ' + (h ? '<b>Señala con tu índice</b>' : '<b>Toca</b>') + ' el animal para tomarle la foto 📸. 4️⃣ Responde una pregunta sobre Florida y el viaje sigue.<br>Fotografía 🐢 🦜 🐊 🦩 🐬 y llega a ver el despegue del cohete 🚀.',
+    how: h => 'Viajas de pie en una <b>lancha</b> por las aguas de Florida, así que puedes <b>girar el celular y mirar los 360°</b> como en la cancha. Hay <b>4 paradas</b>: Miami Beach → Everglades → Cayos → Cabo Cañaveral.<br>1️⃣ En cada parada la lancha se detiene. 2️⃣ Sigue la <b>flecha amarilla ➤</b> girando el celular (o arrastrando). 3️⃣ ' + (h ? '<b>Señala con tu índice</b>' : '<b>Toca</b>') + ' el animal para tomarle la foto 📸. 4️⃣ Responde una pregunta sobre Florida y el viaje sigue.<br>Fotografía 🐢 🦜 🐊 🦩 🐬 y llega a ver el despegue del cohete 🚀.',
     fact: 'Florida es conocida como “The Sunshine State” (el Estado del Sol). Recorriste Miami Beach, los Everglades, la Overseas Highway de los Cayos y la Costa Espacial.'
   },
   heat: {
