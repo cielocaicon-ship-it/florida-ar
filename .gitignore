@@ -1,0 +1,3 @@
+# hilo (estado local de sesión)
+.hilo/.sesion.log
+.hilo/.snapshot.md

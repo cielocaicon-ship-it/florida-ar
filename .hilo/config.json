@@ -1,0 +1,6 @@
+{
+  "modo": "auto",
+  "umbral": 5,
+  "bitacora_max": 8,
+  "estado_max_lineas": 14
+}

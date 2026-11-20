@@ -4,8 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0b1026">
-<title>Florida AR Adventure</title>
-<link rel="stylesheet" href="style.css">
+<title>Carolina AR Adventure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Press+Start+2P&display=swap">
+<link rel="stylesheet" href="CSS/style.css">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head>
 <body>
@@ -18,66 +21,102 @@
   <div id="crosshair" class="hidden"></div>
   <div id="cursor"></div>
   <div id="flash"></div>
-  <div id="footstat" class="hidden"></div>
-  <div id="footbar" class="hidden"><button id="fUp">Punto ▲</button><button id="fDn">Punto ▼</button></div>
+
+  <!-- Patear con la cámara trasera: aro sobre el balón y mensaje encima de tu piso -->
+  <div id="ring" class="hidden" data-st="mid"></div>
+  <div id="floorUi" class="hidden"><span id="floorMsg"></span><span class="fbtns"><button id="fPlace" aria-label="Poner el balón frente a mí">📍 Aquí</button><button id="fSens" aria-label="Cambiar la sensibilidad de la patada">⚡ Sensib.: normal</button></span></div>
+
+  <!-- Recuadro de cámara (modo mano): tócalo para agrandarlo, ✕ para ocultarlo -->
+  <div id="pip" class="hidden"><canvas id="pipCv" title="Toca para agrandar o achicar"></canvas><button id="pipHide" class="pip-x" aria-label="Ocultar el recuadro de la cámara">✕</button><div id="footstat"></div></div>
+  <button id="pipShow" class="pip-tab hidden" aria-label="Mostrar el recuadro de la cámara">📷 Cámara</button>
+
   <div id="arrow" class="hidden">➤</div>
   <div id="fade"></div>
 
   <header id="hud" class="hidden">
-    <button id="bBack" class="ib" aria-label="Regresar">←</button>
-    <div class="tools">
-      <button id="bSound" class="ib" aria-label="Sonido">🔊</button>
-      <button id="bMode" class="ib" aria-label="Cambiar controles">⚙️</button>
-      <button id="bRestart" class="ib" aria-label="Reiniciar">↻</button>
-      <button id="bCenter" class="ib" aria-label="Recentrar">🎯</button>
-      <button id="bGyro" class="ib" aria-label="Sensor de movimiento">🧭</button>
-    </div>
+    <button id="bBack" class="ib" aria-label="Volver a los destinos">←</button>
     <div id="stars"></div>
+    <div class="tools">
+      <button id="bPip" class="ib hidden" aria-label="Mostrar u ocultar la cámara" aria-pressed="true">📷</button>
+      <button id="bSound" class="ib" aria-label="Silenciar">🔊</button>
+      <button id="bMenu" class="ib" aria-label="Menú y ajustes" aria-haspopup="dialog">⚙️</button>
+    </div>
   </header>
   <div id="info" class="hidden"></div>
   <div id="hint" class="hidden"></div>
 
-  <div id="spells" class="hidden">
-    <button class="sp on" data-s="expelliarmus">🔴<span>Expelliarmus</span></button>
-    <button class="sp" data-s="stupefy">⚡<span>Stupefy</span></button>
-    <button class="sp" data-s="protego">🛡️<span>Protego</span></button>
-    <button id="bCast" class="cast">✨ Lanzar</button>
+  <!-- Blue Ridge (clave orlando): leyenda de figuras. Tocar una muestra cómo se dibuja; se ilumina la que pide la runa del guardián -->
+  <div id="spells" class="hidden" aria-label="Figuras de los hechizos">
+    <button class="sp" data-s="zigzag" style="--c:#ffd23a">⚡<span>Zigzag · Rayo</span></button>
+    <button class="sp" data-s="line" style="--c:#ff4d5e">➖<span>Línea · Desarme</span></button>
+    <button class="sp" data-s="circle" style="--c:#66ccff">⭕<span>Círculo · Escudo</span></button>
   </div>
 
-  <section id="welcome" class="screen show">
-    <div class="panel">
-      <div class="emo">🏰 🌴 🏀</div>
-      <h1>FLORIDA<br>AR ADVENTURE</h1>
-      <p>Abre el cofre mágico y descubre Orlando, Miami y el Miami Heat en realidad aumentada, directo en tu navegador.</p>
-      <button id="bStart" class="btn primary">Comenzar aventura</button>
-      <p class="small">En celular, úsalo en vertical.</p>
+  <!-- Medidor de tiro (baloncesto): suelta cuando la marca esté en la zona verde -->
+  <div id="meter" class="hidden" aria-hidden="true"><div class="zone"></div><div class="mark"></div></div>
+  <div id="pops" aria-live="polite"></div>
+  <div id="count" class="hidden" aria-live="assertive"></div>
+  <div id="stage" class="hidden" role="status"><div class="stage-box"><div class="stage-n"></div><div class="stage-t"></div><div class="stage-s"></div><div class="stage-go">▶ TOCA PARA SEGUIR</div></div></div>
+
+  <!-- Intro: Welcome to North Carolina! -->
+  <section id="welcome" class="screen show intro" aria-labelledby="introT">
+    <div class="sky" aria-hidden="true">
+      <div class="sun"></div>
+      <svg class="palm palm-l" viewBox="0 0 200 320"><g fill="#1d0b33"><rect x="92" y="250" width="16" height="70"/><path d="M100 10 L150 110 L124 110 L170 190 L136 190 L190 270 L10 270 L64 190 L30 190 L76 110 L50 110Z"/></g></svg>
+      <svg class="palm palm-r" viewBox="0 0 200 320"><g fill="#1d0b33"><rect x="92" y="250" width="16" height="70"/><path d="M100 10 L150 110 L124 110 L170 190 L136 190 L190 270 L10 270 L64 190 L30 190 L76 110 L50 110Z"/></g></svg>
+      <div class="sea"><i></i><i></i><i></i></div>
+    </div>
+    <div class="intro-c">
+      <p class="intro-w">WELCOME TO NORTH</p>
+      <h1 id="introT" class="intro-t" aria-label="North Carolina!"><span style="--i:0">C</span><span style="--i:1">A</span><span style="--i:2">R</span><span style="--i:3">O</span><span style="--i:4">L</span><span style="--i:5">I</span><span style="--i:6">N</span><span style="--i:7">A</span><span style="--i:8">!</span></h1>
+      <p class="intro-sub">AR ADVENTURE</p>
+      <p class="intro-p">Abre el cofre mágico y viaja por las montañas Blue Ridge, Charlotte, el Research Triangle, la costa de los Outer Banks y los deportes de Carolina del Norte en realidad aumentada.</p>
+      <button id="bStart" class="btn primary big">▶ TOCA PARA EMPEZAR</button>
+      <p class="small">En celular, úsalo en vertical 📱</p>
     </div>
   </section>
 
-  <section id="perm" class="screen">
+  <section id="perm" class="screen" aria-labelledby="permT">
     <div class="panel">
-      <div class="emo">📷</div>
-      <h2>Necesitamos tu cámara</h2>
-      <p>El juego muestra tu entorno real y coloca escenarios 3D encima. En celular se usa la cámara trasera; en computador, la cámara web. No se graba ni se envía nada.</p>
-      <p id="camErr" class="err hidden"></p>
+      <div class="ill" aria-hidden="true">📷</div>
+      <h2 id="permT" class="px">TU CAMARA</h2>
+      <p>El juego mezcla <b>tu entorno real</b> con mundos 3D. Usamos la <b>cámara de atrás</b> del celular (en computador, la cámara web).</p>
+      <p class="small">🔒 No se graba ni se envía nada.</p>
+      <p id="camErr" class="err hidden" role="alert"></p>
       <button id="bCam" class="btn primary">Permitir cámara</button>
       <button id="bNoCam" class="btn">Jugar sin cámara</button>
     </div>
   </section>
 
-  <section id="controls" class="screen">
+  <section id="controls" class="screen" aria-labelledby="ctrlT">
     <div class="panel">
-      <h2>¿Cómo quieres jugar?</h2>
-      <button class="opt" data-m="hand" id="optHand"><b>✋ Modo A · Gestos de mano</b><span>La punta de tu índice es el cursor. Déjalo quieto sobre algo para seleccionarlo (o haz pinza). En celular, pon la otra mano frente a la cámara trasera.</span></button>
-      <div class="qrow">Calidad: <button class="qbtn" data-q="0">Baja</button><button class="qbtn" data-q="1">Media</button><button class="qbtn" data-q="2">Alta</button></div>
-      <button class="opt" data-m="touch" id="optTouch"><b>👆 Modo B · Controles táctiles</b><span>Toca y desliza. Gira el celular para mirar alrededor. Ideal en celular.</span></button>
+      <h2 id="ctrlT" class="px">¿COMO JUEGAS?</h2>
+      <button class="opt" data-m="touch" id="optTouch"><span class="opt-i" aria-hidden="true">👆</span><span class="opt-t"><b>Táctil</b><small>Toca y desliza. Gira el celular para mirar alrededor.</small></span></button>
+      <button class="opt" data-m="hand" id="optHand"><span class="opt-i" aria-hidden="true">✋</span><span class="opt-t"><b>Con tu mano</b><small>Pon la otra mano frente a la cámara de atrás: tu dedo índice es el cursor.</small></span></button>
+      <!-- 🥽 Solo aparece en visores con realidad virtual o mixta (Meta Quest). Código en xr.js -->
+      <button class="opt quest hidden" id="optQuest"><span class="opt-i" aria-hidden="true">🥽</span><span class="opt-t"><b>Modo Quest</b><small>Con gafas Meta Quest: tus manos son el control y el dedo índice es el cursor.</small></span></button>
+      <p class="small">En fútbol y fútbol americano también podrás <b>patear de verdad</b> 🦶</p>
+      <div class="qrow" role="group" aria-label="Calidad gráfica"><span>Calidad</span><button class="qbtn" data-q="0">Baja</button><button class="qbtn" data-q="1">Media</button><button class="qbtn" data-q="2">Alta</button></div>
     </div>
   </section>
+
+  <div id="menu" class="modal sheet" role="dialog" aria-modal="true" aria-labelledby="menuT">
+    <div class="panel">
+      <h2 id="menuT" class="px">MENU</h2>
+      <button id="bMode" class="row"><i aria-hidden="true">🎮</i><span>Cambiar controles</span></button>
+      <button id="bRestart" class="row"><i aria-hidden="true">↻</i><span>Reiniciar</span></button>
+      <button id="bCenter" class="row hidden"><i aria-hidden="true">🎯</i><span>Centrar la vista</span></button>
+      <button id="bGyro" class="row hidden"><i aria-hidden="true">🧭</i><span>Sensor de movimiento</span></button>
+      <button id="bFx" class="row"><i aria-hidden="true">✨</i><span>Efectos</span></button>
+      <div class="qrow" role="group" aria-label="Calidad gráfica"><span>Calidad</span><button class="qbtn" data-q="0">Baja</button><button class="qbtn" data-q="1">Media</button><button class="qbtn" data-q="2">Alta</button></div>
+      <button id="menuClose" class="btn primary">Seguir jugando</button>
+    </div>
+  </div>
 
   <div id="card" class="modal">
     <div class="panel"><h2></h2><div class="body"></div><div class="btns"></div></div>
   </div>
-  <div id="toast"></div>
+  <div id="toast" role="status"></div>
 </div>
 
 <script type="module" src="game.js"></script>

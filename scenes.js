@@ -1,8 +1,10 @@
-// FLORIDA AR ADVENTURE — contenido 3D: cofre AR, portales y tres mundos inmersivos 360°.
+// CAROLINA AR ADVENTURE — contenido 3D: cofre AR, portales, Blue Ridge (duelo), Hornets (baloncesto) y utilidades compartidas.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { modelo, modelInfo, setMaterial } from './models.js';
+import { classify, createStroker } from './gestures.js';
 const V3 = THREE.Vector3, V2 = THREE.Vector2;
 const clamp = THREE.MathUtils.clamp, lerp = THREE.MathUtils.lerp;
 
@@ -245,7 +247,7 @@ function withIntro(ctx, opt, keys, endYaw, endPitch, onEnd) {
   st.finish = () => { if (!st.on) return; st.on = false; path.skip(); ctx.lookReset(endYaw, endPitch); onEnd && onEnd(); if (!opt.quick) ctx.ready(); };
   st.update = dt => { if (!st.on) return; path.update(dt); if (path.done) st.finish(); };
   st.path = path;
-  if (opt.quick) st.finish(); else ctx.hint('Toca la pantalla para saltar la intro ⏭');
+  if (opt.quick || opt.xr) st.finish(); else ctx.hint('Toca la pantalla para saltar la intro ⏭'); // en el visor no hay intro de cámara (confort)
   return st;
 }
 
@@ -328,10 +330,13 @@ const ICONS = {
     for (const x of [-0.12, 0.12]) { add(i, cyl(0.045, 0.05, 0.16), st, x, -0.08, 0); add(i, cone(0.065, 0.11), rf, x, 0.055, 0); }
     return i;
   },
-  miami() { const i = new THREE.Group(); const p = palm(i, 0, 0, 0.05); p.position.y = -0.2; i.add(glow(0xffd54a, 0.25)); return i; },
+  miami() { // faro del Cabo Hatteras en miniatura
+    const i = new THREE.Group(); add(i, new THREE.CylinderGeometry(0.035, 0.06, 0.34, 16), temp(new THREE.MeshStandardMaterial({ color: 0xffffff, map: canvasTex(64, 128, (c, w, h) => { c.fillStyle = '#f4f1ea'; c.fillRect(0, 0, w, h); c.fillStyle = '#151515'; for (const o of [-w, 0, w]) for (let k = 0; k < 2; k++) { const x0 = o + k * w / 2; c.beginPath(); c.moveTo(x0, h); c.lineTo(x0 + w / 4, h); c.lineTo(x0 + w / 4 + w, 0); c.lineTo(x0 + w, 0); c.fill(); } }) })), 0, -0.05, 0);
+    add(i, sph(0.04, 12), M(0xfff3c0, { emissive: 0xffe08a, emissiveIntensity: 2 }), 0, 0.15, 0); i.add(glow(0xffd54a, 0.3)); return i;
+  },
   heat() {
     const i = new THREE.Group();
-    add(i, sph(0.11, 24), ballMat());
+    i.add(modelo('balon-basket', { fallback: () => new THREE.Mesh(sph(0.11, 24), ballMat()), onLoad: o => o.scale.setScalar(0.11) }));
     const f = add(i, cone(0.06, 0.16, 8), M(0xff3b1f, { emissive: 0xaa1100 }), 0.09, 0.1, 0); f.rotation.z = -0.5;
     return i;
   }
@@ -393,7 +398,7 @@ export function createHub(ctx, opt = {}) {
   // Portales
   const DEST = [['orlando', -0.78, 1.95, 0x9b5cff], ['heroes', -0.78, 1.2, 0xe23b3b], ['city', 0, 1.95, 0xff4fa3], ['miami', 0, 1.2, 0x24d1ff],
     ['heat', 0.78, 2.3, 0xff3b30], ['fg', 0.78, 1.6, 0xb8742a], ['penalty', 0.78, 0.9, 0x2c9a4a]];
-  const cats = [['ORLANDO', -0.78, 2.45], ['MIAMI', 0, 2.45], ['DEPORTES', 0.78, 2.8]].map(([t, x, y]) => { const l = label(t, 0.11, '#ffd54a', 'rgba(40,10,60,.85)'); l.position.set(x, y, 0); l.visible = false; g.add(l); return l; });
+  const cats = [['AVENTURA', -0.78, 2.45], ['VIAJE', 0, 2.45], ['DEPORTES', 0.78, 2.8]].map(([t, x, y]) => { const l = label(t, 0.11, '#ffd54a', 'rgba(40,10,60,.85)'); l.position.set(x, y, 0); l.visible = false; g.add(l); return l; });
   const portals = DEST.map(([key, x, y, col]) => {
     const p = new THREE.Group(); p.userData = { key, x, y, t: 0 }; p.visible = false; g.add(p);
     p.add(glow(col, 1.3, 0.55));
@@ -484,7 +489,21 @@ export function createHub(ctx, opt = {}) {
   };
 }
 
-/* ================= MUNDO 1: ORLANDO — PARQUE MÁGICO ================= */
+/* ================= MUNDO 1: BLUE RIDGE — LEYENDA DE LAS LUCES DE BROWN MOUNTAIN (clave interna 'orlando') ================= */
+function fallTree(g, x, z, s = 1) { // árbol de otoño de los montes Blue Ridge (arce, roble), con copa que se mece
+  const p = new THREE.Group(); p.position.set(x, 0, z); p.scale.setScalar(s); g.add(p);
+  add(p, cyl(0.16, 0.24, 2.6, 8), M(0x4a3222), 0, 1.3, 0);
+  const crown = new THREE.Group(); crown.position.y = 2.4; p.add(crown);
+  const C = [0xd9481c, 0xf2a531, 0xb5221a, 0xe8c547, 0x9a3b1a];
+  for (let k = 0; k < 6; k++) add(crown, sph(rnd(0.9, 1.4), 10), M(pick(C), { roughness: 0.95 }), rnd(-0.9, 0.9), rnd(0.6, 2), rnd(-0.9, 0.9));
+  p.userData = { crown, ph: rnd(0, 6) }; return p;
+}
+function blueRidge(g) { // cordilleras azules en capas (el «azul» de Blue Ridge) alrededor del mundo
+  [[330, 0x3b4f86, 70], [270, 0x4f6aa6, 52], [215, 0x6f8cc4, 36]].forEach(([r, c, hmax], L) => {
+    const m = M(c, { roughness: 1, fog: false });
+    for (let a = 0; a < Math.PI * 2; a += 0.16) { const h = hmax * (0.55 + 0.45 * Math.abs(Math.sin(a * 3.1 + L))) + rnd(-6, 6); add(g, cone(rnd(40, 70), h, 7), m, Math.cos(a) * r, h / 2 - 4, -10 + Math.sin(a) * r, false); }
+  });
+}
 function cobbleTex() {
   return rep(canvasTex(512, 512, (g, w, h) => {
     g.fillStyle = '#3c3946'; g.fillRect(0, 0, w, h);
@@ -526,13 +545,13 @@ function house(g, x, z, w, h, col, sign) {
 }
 function wizard() { // mago enemigo
   const w = new THREE.Group();
-  const robeM = temp(new THREE.MeshStandardMaterial({ color: 0x2d1650, roughness: 0.85, emissive: 0x000000 }));
+  const robeM = temp(new THREE.MeshStandardMaterial({ color: 0x1f3b4d, roughness: 0.85, emissive: 0x000000 }));
   add(w, new THREE.LatheGeometry([new V2(0.001, 1.45), new V2(0.2, 1.43), new V2(0.25, 1.2), new V2(0.28, 0.8), new V2(0.4, 0.2), new V2(0.5, 0)], 20), robeM);
   add(w, cyl(0.27, 0.29, 0.08, 20), M(0xc9a227, { metalness: 0.9, roughness: 0.3 }), 0, 1.0, 0);
   const cape = add(w, new THREE.CylinderGeometry(0.33, 0.58, 1.35, 20, 4, true, Math.PI * 0.6, Math.PI * 0.8), M(0x6b0f1a, { side: THREE.DoubleSide, roughness: 0.9 }), 0, 0.76, -0.03);
   add(w, sph(0.13, 24), M(0xe5b998, { roughness: 0.6 }), 0, 1.6, 0);
   const beard = add(w, cone(0.11, 0.34, 12), M(0xc9c9d4), 0, 1.44, 0.06); beard.rotation.x = Math.PI;
-  for (const x of [-0.045, 0.045]) add(w, sph(0.018, 8), M(0x66ffcc, { emissive: 0x33ffaa, emissiveIntensity: 2 }), x, 1.63, 0.115, false);
+  for (const x of [-0.045, 0.045]) add(w, sph(0.018, 8), M(0xcfe8ff, { emissive: 0x9ad0ff, emissiveIntensity: 2.4 }), x, 1.63, 0.115, false);
   add(w, cyl(0.3, 0.3, 0.025, 28), M(0x1f0f38), 0, 1.72, 0);
   const hat = add(w, cone(0.2, 0.6, 20), M(0x1f0f38), 0, 2.0, -0.03); hat.rotation.x = -0.15;
   add(w, cyl(0.205, 0.205, 0.05, 20), M(0xc9a227, { metalness: 0.9, roughness: 0.3 }), 0, 1.76, 0);
@@ -640,18 +659,26 @@ function coaster(g) {
   return { curve, cars, u: 0 };
 }
 
-/* Cinco varitas originales (madera, empuñadura y punta distintas) */
+/* Cinco varitas originales hechas con árboles de Carolina del Norte (madera, empuñadura y punta distintas) */
 const WANDS = [
-  { name: 'Acebo', wood: '#8a6238', len: 0.28, cd: 0.5, sp: 16, hit: 0.6, tip: 0xffe2b0, note: 'equilibrada' },
-  { name: 'Vid tallada', wood: '#4a2c18', len: 0.32, cd: 0.42, sp: 16, hit: 0.6, tip: 0xc8ff9a, note: 'lanza más seguido' },
-  { name: 'Fresno claro', wood: '#c4a27a', len: 0.3, cd: 0.5, sp: 22, hit: 0.6, tip: 0xbfe6ff, note: 'hechizos más rápidos' },
-  { name: 'Roble nudoso', wood: '#5e4430', len: 0.34, cd: 0.6, sp: 15, hit: 0.85, tip: 0xffc070, note: 'hechizos más grandes' },
-  { name: 'Ébano y plata', wood: '#1d1716', len: 0.33, cd: 0.45, sp: 19, hit: 0.65, tip: 0xe8e8ff, note: 'rápida y precisa' }
+  { name: 'Acebo americano', wood: '#8a6238', len: 0.28, cd: 0.5, sp: 16, hit: 0.6, tip: 0xffe2b0, note: 'equilibrada' },
+  { name: 'Cornejo en flor', wood: '#4a2c18', len: 0.32, cd: 0.42, sp: 16, hit: 0.6, tip: 0xc8ff9a, note: 'lanza más seguido' },
+  { name: 'Pino de hoja larga', wood: '#c4a27a', len: 0.3, cd: 0.5, sp: 22, hit: 0.6, tip: 0xbfe6ff, note: 'hechizos más rápidos' },
+  { name: 'Roble blanco', wood: '#5e4430', len: 0.34, cd: 0.6, sp: 15, hit: 0.85, tip: 0xffc070, note: 'hechizos más grandes' },
+  { name: 'Nogal negro y plata', wood: '#1d1716', len: 0.33, cd: 0.45, sp: 19, hit: 0.65, tip: 0xe8e8ff, note: 'rápida y precisa' }
 ];
 let chosenWand = null;
-function wandModel(d, i) { // modelo a lo largo de +Y, de 0 a d.len
+const woodTexFor = d => canvasTex(64, 256, (q, w, h) => { q.fillStyle = d.wood; q.fillRect(0, 0, w, h); for (let k = 0; k < 500; k++) { q.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.28)' : 'rgba(255,230,190,.14)'; q.fillRect(Math.random() * w, Math.random() * h, 2, 6 + Math.random() * 24); } });
+function wandModel(d, i) { // tu modelo FBX (assets/modelos/varitas.fbx) a lo largo de +Y, de 0 a d.len, con la madera de cada varita
+  return modelo('varita' + i, { fallback: () => wandModelOld(d, i), onLoad: o => {
+    o.scale.setScalar(d.len);
+    const tex = woodTexFor(d);
+    setMaterial(o, temp(new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 1.4, roughness: 0.72, metalness: i === 4 ? 0.35 : 0 })));
+  } });
+}
+function wandModelOld(d, i) { // varita hecha por código (respaldo mientras carga el modelo)
   const g = new THREE.Group(), L = d.len;
-  const tex = canvasTex(64, 256, (q, w, h) => { q.fillStyle = d.wood; q.fillRect(0, 0, w, h); for (let k = 0; k < 500; k++) { q.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.28)' : 'rgba(255,230,190,.14)'; q.fillRect(Math.random() * w, Math.random() * h, 2, 6 + Math.random() * 24); } });
+  const tex = woodTexFor(d);
   const wood = temp(new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 1.4, roughness: 0.72 }));
   const prof = [[0.001, 0], [0.012, 0.005], [0.0115, 0.04], [0.0125, 0.08], [0.011, 0.1], [0.0085, 0.13], [0.0065, 0.6], [0.0042, 1]];
   if (i === 2) prof.splice(1, 3, [0.016, 0.02], [0.018, 0.05], [0.012, 0.09]);
@@ -675,7 +702,7 @@ function orlando(ctx, opt) {
   const mixers = [];
   const ground = add(g, new THREE.PlaneGeometry(320, 320), temp(new THREE.MeshStandardMaterial({ map: cobbleTex(), roughness: 0.92 })), 0, 0, -10, false);
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
-  /* ---------- 1) Entrada de un parque temático de Orlando ---------- */
+  /* ---------- 1) Entrada: feria de la montaña en Asheville ---------- */
   const plaza = add(g, new THREE.PlaneGeometry(100, 58), temp(new THREE.MeshStandardMaterial({ map: pavementTex(), roughness: 0.85 })), 0, 0.012, 33, false);
   plaza.rotation.x = -Math.PI / 2; plaza.receiveShadow = true;
   const grass = add(g, new THREE.PlaneGeometry(300, 140), M(0x4f7a32, { roughness: 1 }), 0, 0.005, 130, false); grass.rotation.x = -Math.PI / 2; grass.receiveShadow = true;
@@ -688,12 +715,16 @@ function orlando(ctx, opt) {
     add(g, box(1.6, 1, 0.1), M(0x223344, { metalness: 0.8, roughness: 0.1 }), s * 12.5, 2.4, 36.45, false);
   }
   const arch = add(g, new THREE.TorusGeometry(7.5, 0.55, 14, 48, Math.PI), M(0xffd23a, { metalness: 0.5, roughness: 0.35 }), 0, 9.5, 40); arch.rotation.z = 0;
-  add(g, new THREE.PlaneGeometry(10, 1.8), temp(new THREE.MeshStandardMaterial({ map: textTex('ORLANDO · PARQUE DE AVENTURAS', 1024, 180, '#1d2f6b', '#ffd23a', 'bold 74px system-ui'), roughness: 0.6, side: THREE.DoubleSide })), 0, 13, 40.2, false);
+  add(g, new THREE.PlaneGeometry(10, 1.8), temp(new THREE.MeshStandardMaterial({ map: textTex('ASHEVILLE · FERIA DE LA MONTAÑA', 1024, 180, '#1d2f6b', '#ffd23a', 'bold 70px system-ui'), roughness: 0.6, side: THREE.DoubleSide })), 0, 13, 40.2, false);
   for (let i = -3; i <= 3; i++) { if (i === 0) continue; add(g, box(0.5, 1, 0.9), M(0xb8c0c8, { metalness: 0.9, roughness: 0.25 }), i * 1.6, 0.5, 36); add(g, cyl(0.03, 0.03, 0.8, 6), M(0xffd23a, { metalness: 1 }), i * 1.6 - 0.6, 0.85, 36).rotation.z = Math.PI / 2; }
   const flags = [];
   for (let i = 0; i < 6; i++) { const x = -22 + i * 8.8; add(g, cyl(0.07, 0.07, 9, 8), M(0xdddddd, { metalness: 0.8 }), x, 4.5, 44); const f = add(g, new THREE.PlaneGeometry(2, 1.2), M([0xff4fa3, 0x24d1ff, 0xffd23a][i % 3], { side: THREE.DoubleSide }), x + 1, 8.3, 44, false); flags.push(f); }
   const palms = [];
-  for (let z = 8; z <= 46; z += 7) for (const s of [-1, 1]) palms.push(palm(g, s * 9.5, z, 1, rnd(7, 9)));
+  for (let z = 8; z <= 46; z += 7) for (const s of [-1, 1]) palms.push(fallTree(g, s * 9.5, z, rnd(0.9, 1.2)));
+  blueRidge(g);
+  // luces de Brown Mountain: esferas que flotan y se mueven sobre la cordillera
+  const bmLights = [];
+  for (let i = 0; i < 14; i++) { const l = glow(pick([0xffffff, 0xfff2c0, 0xff8a8a, 0x9ad0ff]), rnd(4, 8), 0.9); l.userData = { a: rnd(0, 6.28), r: rnd(120, 200), y: rnd(25, 55), sp: rnd(0.02, 0.06), ph: rnd(0, 6) }; g.add(l); bmLights.push(l); }
   for (let z = 8; z <= 44; z += 6) for (const s of [-1, 1]) { // jardineras con flores
     add(g, box(2.5, 0.5, 1.2), M(0x8a6a4a), s * 12, 0.25, z);
     for (let k = 0; k < 5; k++) add(g, sph(0.3, 10), M(pick([0xff4fa3, 0xffd23a, 0xff5a3a, 0xffffff, 0xb36bff]), { roughness: 0.8 }), s * 12 + rnd(-1, 1), 0.6, z + rnd(-0.4, 0.4), false);
@@ -742,7 +773,7 @@ function orlando(ctx, opt) {
     const cp = add(g, cone(1.1, 1.7, 4), M(0x3b2a6b), x, 7.45, 2); cp.rotation.y = Math.PI / 4;
   }
   add(g, box(8.1, 1.2, 1.4), stone, 0, 6.2, 2);
-  add(g, new THREE.PlaneGeometry(5.6, 0.9), temp(new THREE.MeshStandardMaterial({ map: textTex('✦ MUNDO MÁGICO ✦', 1024, 160, '#2a1450', '#ffd36b', 'bold 80px Georgia,serif'), emissive: 0x332200, roughness: 0.6 })), 0, 6.2, 2.72, false);
+  add(g, new THREE.PlaneGeometry(5.6, 0.9), temp(new THREE.MeshStandardMaterial({ map: textTex('✦ BROWN MOUNTAIN ✦', 1024, 160, '#2a1450', '#ffd36b', 'bold 76px Georgia,serif'), emissive: 0x332200, roughness: 0.6 })), 0, 6.2, 2.72, false);
   for (const s of [-1, 1]) add(g, box(30, 3.6, 1), stone, s * 19.05, 1.8, 2);
   const gates = [-1, 1].map(s => {
     const h = new THREE.Group(); h.position.set(s * 2.75, 0, 2); g.add(h);
@@ -761,7 +792,7 @@ function orlando(ctx, opt) {
   torch(-3.4, 5.2, 2.8); torch(3.4, 5.2, 2.8);
   for (const x of [-3.2, 3.2]) { add(g, cyl(0.12, 0.2, 1.2, 10), M(0x2a2a2a, { metalness: 0.7 }), x, 0.6, -26); torch(x, 1.35, -26, true); }
   for (const [x, z] of [[-3.2, -26], [3.2, -26]]) { const pl = new THREE.PointLight(0xff8a3a, 22, 14, 2); pl.position.set(x, 2.5, z); g.add(pl); fires.push({ light: pl }); }
-  const SIGNS = ['Varitas', 'Dulces', 'Escobas', 'Libros', 'Plumas', 'Túnicas', 'Pociones', 'Lechuzas', 'Bromas', 'Mapas'];
+  const SIGNS = ['Varitas', 'Banjos', 'Cerámica', 'Colchas', 'Miel', 'Linternas', 'Dulces', 'Mapas', 'Libros', 'Café'];
   const COLS = [0x8a7360, 0x6f6a80, 0x7d5f52, 0x5f6f68, 0x8a6a7a];
   for (let i = 0; i < 5; i++) for (const s of [-1, 1]) house(g, s * 7, -3 - i * 6, rnd(4.6, 5.6), rnd(4.2, 6.2), COLS[(i + (s > 0 ? 2 : 0)) % 5], SIGNS[i * 2 + (s > 0 ? 1 : 0)]);
   const lamps = [];
@@ -787,11 +818,21 @@ function orlando(ctx, opt) {
   // Mago enemigo
   const E = wizard(); const en = E.w; en.position.set(0, 0, -23); en.visible = false; g.add(en);
   const stunStars = [0, 1, 2].map(() => { const s = starMesh(); s.scale.setScalar(0.25); s.visible = false; en.add(s); return s; });
+  // Hechizos por gestos (fase 2): ⚡ zigzag = RAYO (rompe la barrera y aturde) · — línea = DESARME · ⭕ círculo = ESCUDO
+  const SP = {
+    zigzag: { name: 'RAYO', col: 0xffd23a, css: '#ffd23a', icon: '⚡', how: 'un ZIGZAG ⚡', hit: '¡ATURDIDO!' },
+    line: { name: 'DESARME', col: 0xff4d5e, css: '#ff4d5e', icon: '➖', how: 'una LÍNEA rápida ➖', hit: '¡DESARMADO!' },
+    circle: { name: 'ESCUDO', col: 0x66ccff, css: '#66ccff', icon: '⭕', how: 'un CÍRCULO ⭕', hit: '¡REBOTE!' }
+  };
+  // Turnos del mago: la runa que muestra dice qué hechizo funciona.
+  // open = baja la guardia (línea) · barrier = barrera de cristal (zigzag) · attack = te lanza una bola verde (círculo antes de que llegue)
+  const NEED = { open: 'line', barrier: 'zigzag', attack: 'circle' };
+  // win = segundos para responder (en attack, lo que tarda en cargar la bola); fast = multiplicador cuando se enfurece; bolt = velocidad de su bola (m/s)
+  const DUEL = { win: { open: 2.8, barrier: 3.0, attack: 1.3 }, fast: 0.75, hand: 1.3, gap: [1.0, 1.6], bolt: 7 }; // hand = tiempo extra al dibujar en el aire
   // Varita del jugador: madera tallada de unos 30 cm, sin brillo exagerado
-  const COL = { expelliarmus: 0xff3030, stupefy: 0x8fd0ff, protego: 0x66ccff };
   const wand = new THREE.Group(); camera.add(wand);
   let W = WANDS[0], wandMesh = null;
-  const tip = glow(COL.expelliarmus, 0.06, 0.8); wand.add(tip);
+  const tip = glow(0xffe2b0, 0.06, 0.8); wand.add(tip);
   const setWand = i => {
     W = WANDS[i]; if (wandMesh) { wand.remove(wandMesh); disposeTree(wandMesh); }
     wandMesh = wandModel(W, i); wandMesh.rotation.x = Math.PI / 2; wand.add(wandMesh); tip.position.z = W.len + 0.008;
@@ -810,20 +851,131 @@ function orlando(ctx, opt) {
   const pickW = p => { const h = p.ray.intersectObjects(picks, true).find(o => o.object.userData.wi !== undefined); return h ? h.object.userData.wi : null; };
   const shield = new THREE.Group(); shield.position.set(0, -0.02, -0.6); shield.visible = false; camera.add(shield);
   add(shield, new THREE.CircleGeometry(0.42, 48), temp(new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })), 0, 0, 0, false);
-  const hex = add(shield, new THREE.IcosahedronGeometry(0.42, 1), temp(new THREE.MeshBasicMaterial({ color: 0xaee8ff, wireframe: true, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending })), 0, 0, 0, false);
+  const hex = add(shield, new THREE.IcosahedronGeometry(0.42, 1), temp(new THREE.MeshBasicMaterial({ color: 0xaee8ff, wireframe: true, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending })), 0, 0, 0, false);
   hex.scale.z = 0.25;
-
+  // runa sobre el mago: muestra la figura que tienes que dibujar
+  const runeTex = {};
+  for (const k of Object.keys(SP)) runeTex[k] = canvasTex(256, 256, (q, w) => {
+    q.fillStyle = 'rgba(10,8,30,.55)'; q.beginPath(); q.arc(128, 128, 118, 0, 7); q.fill();
+    q.strokeStyle = SP[k].css; q.shadowColor = SP[k].css; q.shadowBlur = 24; q.lineWidth = 8; q.beginPath(); q.arc(128, 128, 112, 0, 7); q.stroke();
+    q.lineWidth = 18; q.lineCap = q.lineJoin = 'round'; q.beginPath();
+    if (k === 'line') { q.moveTo(58, 160); q.lineTo(198, 96); }
+    else if (k === 'circle') q.arc(128, 128, 62, 0, 7);
+    else { q.moveTo(70, 72); q.lineTo(186, 72); q.lineTo(70, 184); q.lineTo(186, 184); }
+    q.stroke(); q.shadowBlur = 0; q.strokeStyle = '#fff'; q.lineWidth = 6; q.stroke();
+  });
+  const rune = new THREE.Sprite(temp(new THREE.SpriteMaterial({ map: runeTex.line, transparent: true, depthWrite: false, fog: false }))); rune.visible = false; rune.renderOrder = 8; g.add(rune);
+  // barrera de cristal del mago (solo la rompe el rayo ⚡)
+  const barrier = new THREE.Group(); barrier.visible = false; g.add(barrier);
+  add(barrier, new THREE.IcosahedronGeometry(1.15, 1), temp(new THREE.MeshBasicMaterial({ color: 0xb38bff, wireframe: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })), 0, 1.1, 0, false);
+  add(barrier, sph(1.1, 24), temp(new THREE.MeshBasicMaterial({ color: 0x8a5cff, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false })), 0, 1.1, 0, false);
+  // trazo luminoso de tu dedo en la pantalla
+  const cv = document.createElement('canvas'); cv.id = 'trail'; document.getElementById('app').appendChild(cv);
+  const c2 = cv.getContext('2d');
+  const trail = { pts: [], col: '#ffffff', fade: 0, demo: null };
+  const stroker = createStroker(); let stroke = null;
+  function drawTrail(dt) {
+    const dpr = Math.min(2, devicePixelRatio || 1), W2 = Math.round(innerWidth * dpr), H2 = Math.round(innerHeight * dpr);
+    if (cv.width !== W2 || cv.height !== H2) { cv.width = W2; cv.height = H2; }
+    c2.setTransform(1, 0, 0, 1, 0, 0); c2.clearRect(0, 0, W2, H2);
+    if (trail.demo) { // demostración de cómo se dibuja una figura (al tocar la leyenda)
+      const D = trail.demo; D.t += dt; trail.pts = D.pts.slice(0, Math.max(2, Math.ceil(D.pts.length * Math.min(1, D.t / 0.8)))); trail.col = SP[D.k].css;
+      if (D.t > 1.1) { trail.demo = null; trail.fade = 1; }
+    } else {
+      if (!stroke && !stroker.active && trail.fade === 0 && trail.pts.length) trail.fade = 1;
+      if (trail.fade > 0) { trail.fade -= dt * 2.2; if (trail.fade <= 0) { trail.fade = 0; trail.pts = []; } }
+    }
+    const P = trail.pts; if (P.length < 2) return;
+    c2.setTransform(dpr, 0, 0, dpr, 0, 0); c2.globalAlpha = trail.fade > 0 ? trail.fade : 1;
+    c2.lineCap = c2.lineJoin = 'round'; c2.beginPath(); c2.moveTo(P[0].x, P[0].y); for (let i = 1; i < P.length; i++) c2.lineTo(P[i].x, P[i].y);
+    if (ctx.fx()) { c2.shadowColor = trail.col; c2.shadowBlur = 18; }
+    c2.strokeStyle = trail.col; c2.lineWidth = 10; c2.stroke();
+    c2.shadowBlur = 0; c2.strokeStyle = 'rgba(255,255,255,.9)'; c2.lineWidth = 3; c2.stroke(); c2.globalAlpha = 1;
+  }
+  function demo(k) { // dibuja la figura de ejemplo en la pantalla
+    if (opt.xr) { demo3 = { k, t: 0 }; ctx.toast(`${SP[k].icon} ${SP[k].name}: dibuja ${SP[k].how} en el aire`, 2600); return; } // 🥽 en el visor: con chispas frente a ti
+    const w = innerWidth, h = innerHeight, cx = w / 2, cy = h * 0.5, r = Math.min(w, h) * 0.2, pts = [];
+    if (k === 'line') for (let i = 0; i <= 30; i++) pts.push({ x: cx - r * 1.3 + i / 30 * r * 2.6, y: cy + r * 0.5 - i / 30 * r });
+    else if (k === 'circle') for (let i = 0; i <= 48; i++) { const a = -Math.PI / 2 + i / 48 * Math.PI * 2; pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r }); }
+    else { const V = [[-1, -0.7], [1, -0.7], [-1, 0.7], [1, 0.7]]; for (let s = 1; s < 4; s++) for (let i = 0; i <= 12; i++) { const u = i / 12; pts.push({ x: cx + r * (V[s - 1][0] + (V[s][0] - V[s - 1][0]) * u), y: cy + r * (V[s - 1][1] + (V[s][1] - V[s - 1][1]) * u) }); } }
+    trail.demo = { k, pts, t: 0 }; trail.fade = 0;
+    ctx.toast(`${SP[k].icon} ${SP[k].name}: dibuja ${SP[k].how}` + (k === 'circle' ? ' (también sirve la palma abierta ✋)' : ''), 2600);
+  }
+  // ===== 🥽 Quest: la varita en tu mano derecha, hechizos dibujados en el aire y la leyenda en 3D =====
+  // PX: «píxeles» por metro de trazo (para el reconocedor de figuras de gestures.js) · PALM: segundos con la palma abierta hacia el mago para el escudo
+  // PALM_CD: espera entre escudos con la palma (s) · SHELF: a qué distancia (m) flota la vitrina de varitas · TOUCH: qué tan cerca debe estar tu dedo de una varita (m)
+  const XO = { PX: 1000, PALM: 0.25, PALM_CD: 1.5, SHELF: 0.5, TOUCH: 0.07 };
+  const XSP = [{ k: 'zigzag', label: '⚡ Zigzag · Rayo', c: '#ffd23a' }, { k: 'line', label: '➖ Línea · Desarme', c: '#ff4d5e' }, { k: 'circle', label: '⭕ Círculo · Escudo', c: '#66ccff' }];
+  let self = null, xLeg = null, xStroke = null, xFade = 0, palmT = 0, palmCd = 0, demo3 = null;
+  const _xv = new V3(), _xr = new V3(), _xq = new THREE.Quaternion(), xRay = new THREE.Raycaster();
+  const xLine = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 400), 3)), temp(new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthTest: false })));
+  xLine.frustumCulled = false; xLine.renderOrder = 50; xLine.visible = false;
+  const xIn = () => { const ins = ctx.xr().inputs; return ins.find(i => i.src && i.ok && i.src.handedness === 'right') || ins.find(i => i.src && i.ok); }; // la mano de la varita
+  if (opt.xr) { camera.remove(shelf); g.add(shelf); shelf.scale.setScalar(1); camera.remove(wand); g.add(wand); g.add(xLine); } // ya no van pegadas a la cámara
+  function placeShelf() { ctx.xr().gamePoint(0, ctx.xr().eye() - 0.3, -XO.SHELF, shelf.position); shelf.lookAt(camW()); }
+  function xrPick(inp) { // ¿qué varita toca tu dedo o apunta tu rayo?
+    if (!inp || !inp.src || !inp.ok) return null;
+    if (inp.src.hand) { const l = shelf.worldToLocal(_xv.copy(inp.tip)); for (const h of picks) if (Math.abs(l.x - h.position.x) < 0.04 && Math.abs(l.y) < 0.2 && Math.abs(l.z) < XO.TOUCH) return { i: h.userData.i, touch: true }; }
+    inp.ctl.getWorldPosition(_xv); _xr.set(0, 0, -1).applyQuaternion(inp.ctl.getWorldQuaternion(_xq)); xRay.set(_xv, _xr);
+    const hit = xRay.intersectObjects(picks, true).find(o => o.object.userData.wi !== undefined);
+    return hit ? { i: hit.object.userData.wi, touch: false } : null;
+  }
+  function xrChoose(i) { choosing = false; shelf.visible = false; setWand(i); chosenWand = i; ctx.sfx('pickup'); ctx.toast(`🪄 Varita de ${W.name}: ${W.note}`, 3000); if (self) self.start(); }
+  function xrHover() { let hv = null; for (const inp of ctx.xr().inputs) { const r = xrPick(inp); if (!r) continue; if (r.touch) { xrChoose(r.i); return null; } hv = r.i; } return hv; }
+  function xrInput(type, inp) { // pinza (o gatillo): elegir varita · mantenerla = dibujar · soltarla = lanzar el hechizo
+    if (!opt.xr) return;
+    if (choosing) { if (type === 'selectstart') { const r = xrPick(inp); if (r) xrChoose(r.i); } return; }
+    if (!running) return;
+    if (type === 'selectstart') { // el trazo se dibuja en un plano frente a tu cabeza
+      camera.getWorldQuaternion(_xq); xStroke = { inp, pts: [], right: new V3(1, 0, 0).applyQuaternion(_xq), up: new V3(0, 1, 0).applyQuaternion(_xq) };
+      xFade = 0; xLine.geometry.setDrawRange(0, 0); xLine.material.color.set(0xffffff);
+    } else if (type === 'selectend' && xStroke && xStroke.inp === inp) {
+      const s = xStroke, P0 = s.pts[0]; xStroke = null; xFade = 1;
+      finishStroke(P0 ? s.pts.map(p => ({ x: _xv.copy(p).sub(P0).dot(s.right) * XO.PX, y: -_xv.copy(p).sub(P0).dot(s.up) * XO.PX })) : []);
+      xLine.material.color.set(trail.col);
+    }
+  }
+  function shape(k, u) { // figura de ejemplo, en metros (x a la derecha, y hacia arriba)
+    const r = 0.18;
+    if (k === 'line') return [-0.23 + u * 0.46, -0.09 + u * 0.18];
+    if (k === 'circle') { const a = Math.PI / 2 - u * Math.PI * 2; return [Math.cos(a) * r, Math.sin(a) * r]; }
+    const V = [[-1, 0.7], [1, 0.7], [-1, -0.7], [1, -0.7]], s = Math.min(2.999, u * 3), i = Math.floor(s), f = s - i; // zigzag en «Z»
+    return [r * (V[i][0] + (V[i + 1][0] - V[i][0]) * f), r * (V[i][1] + (V[i + 1][1] - V[i][1]) * f)];
+  }
+  function xrWand(dt) { // la varita sale de tu mano derecha, apuntando hacia donde apuntas
+    const inp = xIn(); wand.visible = !!inp && !intro.on && !choosing;
+    if (inp) { inp.ctl.getWorldQuaternion(_xq); _xr.set(0, 0, -1).applyQuaternion(_xq); wand.position.copy(inp.palmPos); wand.lookAt(_xv.copy(inp.palmPos).add(_xr)); wand.rotateX(-kick * 0.5); }
+    if (xStroke) { // estela de luz: la punta de la varita (o tu dedo, si dibujas con la otra mano)
+      const q = xStroke.inp, p = q === inp ? tip.getWorldPosition(_xv) : q.src && q.src.hand ? q.tip : q.grabPos, L = xStroke.pts, last = L[L.length - 1];
+      if ((!last || last.distanceTo(p) > 0.004) && L.length < 400) {
+        L.push(p.clone()); const a = xLine.geometry.attributes.position; a.setXYZ(L.length - 1, p.x, p.y, p.z); a.needsUpdate = true; xLine.geometry.setDrawRange(0, L.length);
+      }
+      xLine.visible = true; xLine.material.opacity = 1; ctx.burst(p, 0xfff1c0, 1, 0.05);
+    } else if (xFade > 0) { xFade = Math.max(0, xFade - dt * 2); xLine.material.opacity = xFade; if (!xFade) xLine.visible = false; }
+    // palma abierta hacia el mago (con una runa activa) = escudo
+    palmCd = Math.max(0, palmCd - dt); enC.copy(en.position).setY(1.15); let pal = false;
+    for (const q of ctx.xr().inputs) if (q.src && q.src.hand && q.ok && q.open && (!xStroke || xStroke.inp !== q) && q.palmPos.distanceTo(camW()) > 0.3 && q.palmN.dot(_xr.copy(enC).sub(q.palmPos).normalize()) > 0.75) pal = true;
+    palmT = pal ? palmT + dt : 0;
+    if (running && palmT > XO.PALM && !palmCd && turn && !turn.done) { palmCd = XO.PALM_CD; palmT = 0; cast('circle'); }
+    if (demo3) { // demostración de la figura (al tocar la leyenda): chispas frente a ti
+      if (!demo3.o) { camera.getWorldQuaternion(_xq); demo3.r = new V3(1, 0, 0).applyQuaternion(_xq); demo3.u = new V3(0, 1, 0).applyQuaternion(_xq); demo3.o = camW().clone().add(_xr.set(0, 0, -1).applyQuaternion(_xq)); }
+      demo3.t += dt; const [x, y] = shape(demo3.k, Math.min(1, demo3.t / 0.8));
+      ctx.burst(_xv.copy(demo3.o).addScaledVector(demo3.r, x).addScaledVector(demo3.u, y), SP[demo3.k].col, 3, 0.05);
+      if (demo3.t > 1.1) demo3 = null;
+    }
+  }
+  // leyenda de abajo: las 3 figuras. Tocar una muestra cómo se dibuja; se ilumina la que pide la runa
   const ui = document.getElementById('spells'), btns = [...ui.querySelectorAll('.sp')];
-  let spell = 'expelliarmus';
-  const setSpell = s => { spell = s; btns.forEach(x => x.classList.toggle('on', x.dataset.s === s)); tip.material.color.set(COL[s]); };
-  btns.forEach(b => { b.onclick = () => { setSpell(b.dataset.s); ctx.sfx('click'); }; });
-  setSpell('expelliarmus');
-  document.getElementById('bCast').onclick = () => cast();
+  btns.forEach(b => { b.onclick = () => { ctx.sfx('click'); demo(b.dataset.s); }; });
+  const legend = k => { btns.forEach(x => x.classList.toggle('on', x.dataset.s === k)); if (xLeg) xLeg.set(k); };
+  legend(null);
 
-  let alive = true, running = false, hits = 0, hp = 4, cd = 0, shieldT = 0, shieldCd = 0, stun = 0, disarm = 0, fireT = 3, charge = 0, dead = 0, won = false, tx = 0, moveT = 0, kick = 0, castAnim = 0, gateOpen = 0, gateSnd = false;
-  const shots = [], foes = [], flying = [];
+  let alive = true, running = false, hits = 0, hp = 4, cd = 0, shieldT = 0, stun = 0, disarm = 0, dead = 0, won = false, tx = 0, moveT = 0, kick = 0, castAnim = 0, gateOpen = 0, gateSnd = false;
+  let shOn = 0, turn = null, turnN = 0, gap = 2, lock = 0, combo = 0, duelT = 0, lastType = '', sameN = 0;
+  const shots = [], foes = [], flying = [], bolts = [];
   const enC = new V3(), camW = () => camera.getWorldPosition(_w);
-  const info = () => ctx.info(`${'❤️'.repeat(hp)}${'🖤'.repeat(4 - hp)} · Aciertos ${hits}/6${hits >= 3 ? ' · 😡 fase 2' : ''}`);
+  const fast = () => hits >= 3;
+  const info = () => ctx.info(`${'❤️'.repeat(hp)}${'🖤'.repeat(4 - hp)} · Aciertos ${hits}/6${combo >= 2 ? ` · 🔥 x${combo}` : ''}${fast() ? ' · 😡 fase 2' : ''}`);
   const intro = withIntro(ctx, opt, [
     { t: 0, p: [0, 1.6, 54], yaw: 0, pitch: 0.12 },
     { t: 3, p: [0, 1.6, 41], yaw: 0, pitch: 0.18 },
@@ -836,62 +988,129 @@ function orlando(ctx, opt) {
     { t: 21, p: [0, 1.6, -14], yaw: Math.PI * 2, pitch: 0.05 },
     { t: 21.5, p: [0, 1.6, -14], yaw: Math.PI * 2, pitch: 0 }
   ], 0, 0, () => {
-    ctx.camera.position.set(0, 1.6, -14); gateOpen = 1;
+    ctx.camera.position.set(0, 1.6, -14); gateOpen = 1; ctx.teleport(0, -14); // 🥽 en el visor apareces frente al mago
     en.visible = true; ctx.sfx('portal');
     ctx.burst(en.localToWorld(_v.set(0, 1.2, 0)), [0x9b5cff, 0x66ffcc, 0xffffff], 70, 2.2);
-    document.getElementById('crosshair').classList.remove('hidden');
   });
   ui.classList.toggle('hidden', !!intro.on);
 
-  function aimPoint() { const d = en.localToWorld(_v.set(0, 1.2, 0)).distanceTo(camW()); return ctx.ptr.ray.ray.at(d, new V3()); }
-  function cast() {
-    if (!running || cd > 0) return;
-    if (spell === 'protego') { protego(); return; }
-    cd = W.cd; kick = 1; ctx.sfx('spell');
-    const from = tip.getWorldPosition(new V3()), to = aimPoint();
-    enC.copy(en.position).setY(1.15);
-    const assist = Math.abs(to.x - enC.x) < 1.2 && Math.abs(to.y - enC.y) < 1.3;
-    const m = add(g, sph(0.07, 10), B(COL[spell]), from.x, from.y, from.z, false); m.add(glow(COL[spell], 1.1));
-    shots.push({ m, v: (assist ? enC.clone() : to).sub(from).normalize().multiplyScalar(W.sp), kind: spell, life: 1.4, assist });
-    ctx.burst(from, COL[spell], 10, 0.8);
+  function nextTurn() {
+    const TEACH = ['open', 'attack', 'barrier']; // las 3 primeras runas enseñan las 3 figuras
+    let type = turnN < 3 ? TEACH[turnN] : pick(fast() ? ['attack', 'attack', 'open', 'barrier'] : ['attack', 'open', 'barrier']);
+    if (turnN >= 3 && type === lastType && sameN >= 1) type = pick(Object.keys(NEED).filter(k => k !== lastType)); // nunca 3 runas iguales seguidas
+    sameN = type === lastType ? sameN + 1 : 0; lastType = type; turnN++;
+    const k = NEED[type];
+    turn = { type, need: k, t: 0, win: DUEL.win[type] * (fast() ? DUEL.fast : 1) * (ctx.isHand() || opt.xr ? DUEL.hand : 1), fired: false, done: false };
+    rune.material.map = runeTex[k]; rune.visible = true; rune.scale.setScalar(0.01);
+    runes.material.color.set(SP[k].col); legend(k); ctx.sfx('charge');
+    if (type === 'barrier') { barrier.visible = true; barrier.scale.setScalar(0.01); }
+    ctx.hint(`Runa ${SP[k].icon}: ¡dibuja ${SP[k].how}${type === 'attack' ? ' antes de que llegue la bola verde' : ''}!`);
   }
-  function protego() { if (!running || shieldCd > 0) return; shieldT = 1.7; shieldCd = 3; ctx.sfx('block'); }
+  function endTurn(late) {
+    if (!turn) return;
+    if (late) { ctx.pop('¡MUY TARDE!', 'bad'); combo = 0; info(); }
+    rune.visible = false; barrier.visible = false; runes.material.color.set(0xb38bff); legend(null);
+    turn = null; gap = rnd(DUEL.gap[0], DUEL.gap[1]) * (fast() ? 0.7 : 1);
+  }
+  function lightning(from, to, col) { // rayo en zigzag que dura un instante
+    const pts = []; for (let k = 0; k <= 12; k++) { const q = from.clone().lerp(to, k / 12); if (k && k < 12) q.add(_v.set(rnd(-0.35, 0.35), rnd(-0.35, 0.35), rnd(-0.2, 0.2))); pts.push(q); }
+    const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), temp(new THREE.LineBasicMaterial({ color: col, transparent: true, blending: THREE.AdditiveBlending })));
+    g.add(ln); bolts.push({ ln, life: 0.28 });
+  }
+  function deflect() { // el aura del mago desvía un hechizo equivocado
+    ctx.sfx('block'); ctx.burst(en.localToWorld(_v.set(0, 1.2, 0)), [0xb38bff, 0xffffff], 25, 1.6);
+  }
+  function wrong() {
+    if (!turn || turn.done) { ctx.pop('ESPERA LA RUNA', 'small'); return; }
+    ctx.pop('¡ESE NO!', 'bad'); ctx.sfx('buzzer'); lock = 0.5; combo = 0; info();
+  }
+  function cast(kind) {
+    if (!running || dead || lock > 0) return;
+    const S2 = SP[kind], ok = !!turn && !turn.done && turn.need === kind;
+    kick = 1; tip.material.color.set(S2.col);
+    if (kind === 'circle') { // escudo: en un turno de ataque se queda arriba hasta que llegue la bola
+      if (ok) { turn.done = true; shieldT = 99; ctx.pop('¡ESCUDO!', 'small'); } else { shieldT = 1.2; wrong(); }
+      ctx.sfx('block'); return;
+    }
+    if (cd > 0) return; cd = W.cd; ctx.sfx('spell');
+    const from = tip.getWorldPosition(new V3()); enC.copy(en.position).setY(1.15);
+    if (ok) turn.done = true; else wrong();
+    ctx.burst(from, S2.col, 10, 0.8);
+    if (kind === 'zigzag') { // el rayo llega al instante
+      lightning(from, enC, S2.col);
+      if (ok) { barrier.visible = false; ctx.burst(enC, [0xb38bff, 0xffffff, 0xffd23a], 90, 3); enemyHit('zigzag'); } else deflect();
+    } else { // desarme: proyectil rojo que busca al mago
+      const m = add(g, sph(0.07 * W.hit / 0.6, 10), B(S2.col), from.x, from.y, from.z, false); m.add(glow(S2.col, 1.1));
+      shots.push({ m, v: enC.clone().sub(from).normalize().multiplyScalar(W.sp), ok, kind, col: S2.col, life: 1.6 });
+    }
+  }
   function enemyHit(kind) {
-    hits++; E.segs[6 - hits].visible = false; if (hits === 3) { ctx.toast('😡 ¡El mago se enfurece! Ahora se mueve y ataca más rápido.', 3500); E.tip.material.color.set(0xff3344); } ctx.sfx('hit'); info();
-    ctx.burst(en.localToWorld(_v.set(0, 1.2, 0)), [COL[kind], 0xffffff], 50, 2);
-    E.robeM.emissive.set(kind === 'stupefy' ? 0x1f4f99 : 0x661111);
-    if (kind === 'stupefy') stun = 2.6;
-    else {
-      disarm = 2; E.wand.visible = false; charge = 0;
+    if (dead) return;
+    const quick = !!turn && kind !== 'circle' && turn.t < 1.0; // respondiste rapidísimo
+    hits++; combo++; E.segs[6 - hits].visible = false;
+    ctx.sfx('hit'); ctx.shake(0.3); if (quick) ctx.sfx('perfect');
+    ctx.burst(en.localToWorld(_v.set(0, 1.2, 0)), [SP[kind].col, 0xffffff], 50, 2);
+    E.robeM.emissive.set(kind === 'zigzag' ? 0x4a3a00 : kind === 'line' ? 0x661111 : 0x1f4f99);
+    ctx.pop(quick ? '¡RÁPIDO! ' + SP[kind].hit : SP[kind].hit, quick || combo >= 3 ? 'fire' : 'good');
+    if (combo >= 2) setTimeout(() => alive && ctx.pop(`COMBO x${combo}`, 'small'), 500);
+    if (kind === 'line') {
+      disarm = 1.8; E.wand.visible = false;
       const fw = add(g, cyl(0.012, 0.018, 0.4, 6), M(0x2a1a0a), 0, 0, 0, false);
       E.wand.getWorldPosition(fw.position); fw.userData = { v: new V3(rnd(-1.5, 1.5), 4.5, rnd(1, 2)), life: 1.8 }; flying.push(fw);
-    }
-    if (hits >= 6) { running = false; dead = 0.001; }
+    } else stun = kind === 'zigzag' ? 2.2 : 1.2;
+    if (hits === 3) { ctx.toast('😡 ¡El guardián de la montaña se enfurece! Sus runas duran menos y ataca más.', 3500); E.tip.material.color.set(0xff3344); }
+    endTurn(false); info();
+    if (hits >= 6) { running = false; dead = 0.001; ctx.slowmo(0.8, 0.35); legend(null); }
   }
   function remove(list, i) { const o = list[i]; g.remove(o.m || o); disposeTree(o.m || o); list.splice(i, 1); }
-  const refreshHint = () => ctx.hint(ctx.isHand() ? '☝️ Apunta al mago con tu índice (dispara solo) · ✋ palma abierta = Protego' : 'Toca al mago o pulsa ✨ Lanzar · arrastra o gira el celular para mirar');
+  function finishStroke(pts) {
+    const r = classify(pts);
+    trail.pts = pts; trail.fade = 1;
+    if (!r.kind) { trail.col = '#ffffff'; if (r.why !== 'corto') { ctx.pop('¿?', 'small'); ctx.hint('No reconocí la figura. Dibújala grande: ⚡ zigzag · ➖ línea · ⭕ círculo'); } return; }
+    trail.col = SP[r.kind].css; cast(r.kind);
+  }
+  function chooseWand(p) {
+    const i = pickW(p); if (i === null || i === undefined) return false;
+    choosing = false; shelf.visible = false; setWand(i); chosenWand = i; ctx.sfx('pickup'); ctx.toast(`🪄 Varita de ${W.name}: ${W.note}`, 3000); return true;
+  }
+  const refreshHint = () => ctx.hint(turn ? `Runa ${SP[turn.need].icon}: ¡dibuja ${SP[turn.need].how}!`
+    : opt.xr ? '🪄 Junta índice y pulgar y dibuja con la varita la figura de la runa · ✋ palma abierta hacia el guardián = escudo'
+    : ctx.isHand() ? '☝️ Dibuja en el aire con tu índice la figura de la runa del guardián · ✋ palma abierta = escudo' : '👆 Dibuja con el dedo, en la pantalla, la figura de la runa del guardián');
   const coTmp = new V3();
 
   return {
-    look: true, camLock: !opt.quick, dwellTime: 0.35, repeatDwell: 0.55, refreshHint,
+    look: false, camLock: !opt.quick, dwellTime: 0.6, refreshHint, xrInput, xrRays: () => opt.xr && choosing, _dbg: { cast: k => cast(k), need: () => (turn && !turn.done ? turn.need : null) },
     start() {
-      this.camLock = false;
-      if (chosenWand !== null) { running = true; ui.classList.remove('hidden'); info(); refreshHint(); setTimeout(() => { if (alive && running) ctx.hint(''); }, 5000); return; }
-      choosing = true; shelf.visible = true; wand.visible = false; ui.classList.add('hidden'); ctx.info('🪄 Elige tu varita');
+      this.camLock = false; self = this;
+      if (chosenWand !== null) { if (opt.xr && !xLeg) xLeg = ctx.xr().legend(XSP, k => demo(k)); running = true; gap = 1.4; ui.classList.remove('hidden'); document.body.classList.add('hasbar'); info(); ctx.pop('¡A DUELO!', 'fire'); refreshHint(); return; }
+      choosing = true; shelf.visible = true; wand.visible = false; if (opt.xr) placeShelf(); ui.classList.add('hidden'); ctx.info('🪄 Elige tu varita');
       ctx.hint((ctx.isHand() ? '☝️ Señala' : '👆 Toca') + ' la varita que quieras: ' + WANDS.map(d => d.name).join(' · '));
     },
-    tap(p) {
+    tap(p) { // con la mano: dejar el dedo quieto sobre una varita la elige
       if (intro.on) { intro.finish(); this.camLock = false; return; }
-      if (choosing) { const i = pickW(p); if (i === null || i === undefined) return; choosing = false; shelf.visible = false; setWand(i); chosenWand = i; ctx.sfx('pickup'); ctx.toast(`🪄 Varita de ${W.name}: ${W.note}`, 3000); this.start(); return; }
-      cast();
+      if (choosing && chooseWand(p)) this.start();
     },
-    palm() { protego(); },
-    hoverable(p) {
-      if (choosing) return pickW(p);
-      if (!running || dead) return null;
-      const c = en.localToWorld(_v.set(0, 1.2, 0));
-      return p.ray.ray.distanceSqToPoint(c) < 0.9 ? 'enemy' : null;
+    onDown(p) {
+      if (intro.on) { intro.finish(); this.camLock = false; return; }
+      if (choosing) { if (p.src === 'hand' && chooseWand(p)) this.start(); return; }
+      if (running && p.src !== 'hand') { stroke = [{ x: p.sx, y: p.sy }]; trail.pts = stroke; trail.fade = 0; trail.demo = null; trail.col = '#ffffff'; }
     },
+    onMove(p) {
+      if (choosing || !running) return;
+      if (p.src === 'hand') { // con la mano: el trazo empieza al moverla rápido y termina al quedarse quieta
+        const r = stroker.feed(p.sx, p.sy, performance.now() / 1000);
+        if (stroker.active) { trail.pts = stroker.points; trail.fade = 0; trail.demo = null; trail.col = '#ffffff'; }
+        if (r) finishStroke(r);
+        return;
+      }
+      if (stroke) stroke.push({ x: p.sx, y: p.sy });
+    },
+    onUp(p) {
+      if (choosing) { if (p.src !== 'hand' && chooseWand(p)) this.start(); return; }
+      if (stroke && p.src !== 'hand') { const s = stroke; stroke = null; finishStroke(s); }
+    },
+    palm() { cast('circle'); },
+    hoverable(p) { return choosing ? pickW(p) : null; },
     update(dt, t) {
       mixers.forEach(m => m.update(dt));
       if (intro.on) {
@@ -904,7 +1123,7 @@ function orlando(ctx, opt) {
       }
       gates.forEach((h, i) => { h.rotation.y = (i ? -1 : 1) * 1.75 * gateOpen; });
       // ambiente del parque (solo se anima lo que está cerca de la cámara)
-      const near = camera.position.z > -5;
+      const near = camW().z > -5;
       if (near) {
         FW.rot.rotation.z += dt * 0.06; FW.gond.forEach(c => (c.rotation.z = -FW.rot.rotation.z));
         CO.u = (CO.u + dt * 0.05) % 1;
@@ -914,6 +1133,7 @@ function orlando(ctx, opt) {
         balloons.forEach(b => { b.position.y = b.userData.y + Math.sin(t * 1.5 + b.userData.ph) * 0.08; b.rotation.z = Math.sin(t + b.userData.ph) * 0.1; });
         flags.forEach((f, i) => (f.rotation.y = Math.sin(t * 3 + i) * 0.35));
         palms.forEach(p => { const c = p.userData.crown; c.rotation.z = Math.sin(t * 0.9 + p.userData.ph) * 0.05; });
+        bmLights.forEach(l => { const u = l.userData; u.a += u.sp * dt; l.position.set(Math.cos(u.a) * u.r, u.y + Math.sin(t * 0.7 + u.ph) * 6, -10 + Math.sin(u.a) * u.r); l.material.opacity = 0.35 + 0.6 * Math.max(0, Math.sin(t * 0.9 + u.ph)); });
         for (const o of people) {
           if (o.mode === 'clap') { clapAnim(o.P, t, o.ph); continue; }
           o.ph += dt * o.sp * 5.2; walkAnim(o.P, o.ph);
@@ -929,73 +1149,88 @@ function orlando(ctx, opt) {
       lamps.forEach((l, i) => l.scale.setScalar(1.6 + Math.sin(t * 9 + i) * 0.12));
       candles.forEach(c => { c.position.y += Math.sin(t * 1.3 + c.userData.ph) * 0.003; });
       castle.traverse(o => { if (o.userData.flag) o.rotation.y = Math.sin(t * 2.5) * 0.3; });
-      runes.rotation.z += dt * 0.3; runes.material.opacity = 0.5 + Math.sin(t * 2) * 0.2;
-      // varita
-      cd = Math.max(0, cd - dt); shieldCd = Math.max(0, shieldCd - dt); shieldT = Math.max(0, shieldT - dt);
-      btns[2].classList.toggle('cool', shieldCd > 0 && shieldT <= 0);
-      shield.visible = shieldT > 0; hex.rotation.z += dt; shield.scale.setScalar(Math.min(1, (1.7 - shieldT) * 6) * (1 + Math.sin(t * 20) * 0.02));
+      runes.rotation.z += dt * (turn ? 1.2 : 0.3); runes.material.opacity = 0.5 + Math.sin(t * (turn ? 6 : 2)) * 0.2;
+      drawTrail(dt);
+      // varita y escudo
+      cd = Math.max(0, cd - dt); shieldT = Math.max(0, shieldT - dt); lock = Math.max(0, lock - dt);
+      shield.visible = shieldT > 0; shOn = shield.visible ? shOn + dt : 0; hex.rotation.z += dt; shield.scale.setScalar(Math.min(1, shOn * 6) * (1 + Math.sin(t * 20) * 0.02));
       kick = Math.max(0, kick - dt * 5);
       const n = ctx.ptr.ndc, hh = 0.45 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), hw = hh * camera.aspect;
       wand.visible = !intro.on && !choosing;
-      if (choosing) { hoverW = pickW(ctx.ptr); picks.forEach(h => { h.rotation.y += dt * 1.2; h.scale.setScalar(h.userData.i === hoverW ? 1.25 : 1); }); if (hoverW !== null && hoverW !== undefined) ctx.info(`🪄 ${WANDS[hoverW].name} — ${WANDS[hoverW].note}`); }
-      wand.position.set((n.x * 0.5 + 0.38) * hw, (n.y * 0.4 - 0.58) * hh, -0.42);
-      wand.lookAt(aimPoint()); wand.rotateX(-kick * 0.5);
+      if (choosing) { hoverW = opt.xr ? xrHover() : pickW(ctx.ptr); picks.forEach(h => { h.rotation.y += dt * 1.2; h.scale.setScalar(h.userData.i === hoverW ? 1.25 : 1); }); if (hoverW !== null && hoverW !== undefined) ctx.info(`🪄 ${WANDS[hoverW].name} — ${WANDS[hoverW].note}`); }
+      if (opt.xr) xrWand(dt);
+      else { wand.position.set((n.x * 0.5 + 0.38) * hw, (n.y * 0.4 - 0.58) * hh, -0.42); wand.lookAt(en.localToWorld(_v.set(0, 1.2, 0))); wand.rotateX(-kick * 0.5); }
+      if (!kick && turn) tip.material.color.set(SP[turn.need].col);
       const cw = camW();
       for (let i = flying.length - 1; i >= 0; i--) { const f = flying[i], u = f.userData; u.life -= dt; u.v.y -= 9 * dt; f.position.addScaledVector(u.v, dt); f.rotation.x += dt * 12; if (f.position.y < 0.05) { f.position.y = 0.05; u.v.set(0, 0, 0); } if (u.life <= 0) remove(flying, i); }
+      for (let i = bolts.length - 1; i >= 0; i--) { const b = bolts[i]; b.life -= dt; b.ln.material.opacity = b.life * 3.5; if (b.life <= 0) { g.remove(b.ln); disposeTree(b.ln); bolts.splice(i, 1); } }
       if (en.visible) {
         en.lookAt(cw.x, 0, cw.z); E.bar.lookAt(cw); E.cape.rotation.y = Math.sin(t * 1.7) * 0.08;
+        if (turn && turn.type === 'open') en.rotateZ(Math.sin(t * 5) * 0.08); // baja la guardia y se tambalea
         stunStars.forEach((s, i) => { s.visible = stun > 0; const a = t * 4 + i * 2.1; s.position.set(Math.cos(a) * 0.35, 2.15, Math.sin(a) * 0.35); s.rotation.y += dt * 5; });
       }
       if (dead) {
         dead += dt; en.scale.setScalar(Math.max(0.01, 1 - dead * 1.2)); en.rotation.y += dt * 14; en.position.y += dt * 0.6;
         if (Math.random() < 0.7) ctx.burst(en.localToWorld(_v.set(0, 1, 0)), [0x9b5cff, 0xffd700], 4, 1.5);
-        if (dead > 0.9 && !won) { won = true; en.visible = false; ctx.win('orlando'); }
+        if (dead > 0.9 && !won) {
+          won = true; en.visible = false; rune.visible = false; barrier.visible = false;
+          const secs = Math.round(duelT), medal = hp >= 4 ? 'oro' : hp >= 3 ? 'plata' : 'bronce', b = ctx.best('orlando', secs, true);
+          ctx.win('orlando', { medal, line: `✨ 6 hechizos en ${secs} s · ${'❤️'.repeat(hp)}`, record: b.isNew ? '¡NUEVO RÉCORD!' : `RÉCORD: ${b.best} s` });
+        }
       } else if (running) {
-        stun = Math.max(0, stun - dt); disarm = Math.max(0, disarm - dt);
+        duelT += dt; stun = Math.max(0, stun - dt); disarm = Math.max(0, disarm - dt);
         if (!disarm) E.wand.visible = true;
         if (!stun && !disarm) E.robeM.emissive.lerp(_u.set(0, 0, 0), dt * 3);
-        if (!stun) { moveT -= dt; if (moveT <= 0) { moveT = hits >= 3 ? rnd(0.9, 1.6) : rnd(1.6, 2.8); tx = rnd(-3.5, 3.5); } en.position.x = lerp(en.position.x, tx, dt * (hits >= 3 ? 2.6 : 1.5)); en.position.y = Math.sin(t * 2) * 0.05; }
-        if (!stun && !disarm) {
-          fireT -= dt;
-          if (fireT < 0.9) { if (!charge) ctx.sfx('charge'); charge = 1; }
-          castAnim = lerp(castAnim, fireT < 0.9 ? 1 : 0, dt * 6);
-          E.tip.scale.setScalar(0.25 + (fireT < 0.9 ? (0.9 - fireT) * 0.9 : 0));
-          if (fireT <= 0) {
-            fireT = hits >= 3 ? rnd(1.6, 2.3) : rnd(2.4, 3.3); charge = 0;
+        if (!stun) { moveT -= dt; if (moveT <= 0) { moveT = fast() ? rnd(0.9, 1.6) : rnd(1.6, 2.8); tx = rnd(-3.5, 3.5); } en.position.x = lerp(en.position.x, tx, dt * (fast() ? 2.6 : 1.5) * (barrier.visible ? 0.4 : 1)); en.position.y = Math.sin(t * 2) * 0.05; }
+        if (!turn) { if (!stun && !disarm) { gap -= dt; if (gap <= 0) nextTurn(); } }
+        else {
+          turn.t += dt;
+          rune.position.copy(en.position).setY(3.25); rune.scale.setScalar(Math.min(1.25, turn.t * 6) * (1 + Math.sin(t * 8) * 0.05));
+          if (barrier.visible) { barrier.position.copy(en.position); barrier.scale.setScalar(Math.min(1, turn.t * 4)); barrier.rotation.y += dt * 0.8; }
+          if (turn.type === 'attack' && !turn.fired && turn.t >= turn.win) { // dispara la bola verde
+            turn.fired = true;
             const from = E.tip.getWorldPosition(new V3()), to = cw.clone().add(_v.set(rnd(-0.2, 0.2), -0.1, 0));
             const m = add(g, sph(0.1, 10), B(0x66ff88), from.x, from.y, from.z, false); m.add(glow(0x66ff88, 1.3));
-            foes.push({ m, v: to.sub(from).normalize().multiplyScalar(7) });
-          }
-        } else castAnim = lerp(castAnim, 0, dt * 6);
-        E.arms[1].rotation.x = -castAnim * 1.9; E.arms[1].rotation.z = 0.15 + castAnim * 0.2;
+            foes.push({ m, v: to.sub(from).normalize().multiplyScalar(DUEL.bolt * (fast() ? 1.25 : 1)) });
+          } else if (turn.type !== 'attack' && !turn.done && turn.t >= turn.win) endTurn(true);
+        }
+        const charging = !!turn && turn.type === 'attack' && !turn.fired;
+        castAnim = lerp(castAnim, charging ? 1 : 0, dt * 6);
+        E.tip.scale.setScalar(0.25 + (charging ? Math.min(1, turn.t / turn.win) * 0.8 : 0));
+        E.arms[1].rotation.x = -castAnim * 1.9 + (turn && turn.type === 'open' ? 0.5 : 0); E.arms[1].rotation.z = 0.15 + castAnim * 0.2;
         E.arms[0].rotation.x = Math.sin(t * 1.5) * 0.08;
       }
       for (let i = shots.length - 1; i >= 0; i--) {
         const s = shots[i]; s.life -= dt;
         enC.copy(en.position).setY(1.15);
-        if (s.assist && !dead) { _v.copy(enC).sub(s.m.position).normalize().multiplyScalar(W.sp); s.v.lerp(_v, 0.15); }
+        if (!dead) { _v.copy(enC).sub(s.m.position).normalize().multiplyScalar(s.v.length()); s.v.lerp(_v, 0.2); } // siempre busca al mago
         s.m.position.addScaledVector(s.v, dt);
-        ctx.burst(s.m.position, COL[s.kind], 1, 0.25);
-        if (!dead && running && en.visible && s.m.position.distanceTo(enC) < W.hit) { enemyHit(s.kind); remove(shots, i); }
-        else if (s.life <= 0) remove(shots, i);
+        ctx.burst(s.m.position, s.col, 1, 0.25);
+        if (!dead && en.visible && s.m.position.distanceTo(enC) < 0.7) { if (s.ok && running) enemyHit(s.kind); else deflect(); remove(shots, i); }
+        else if (s.life <= 0) { remove(shots, i); if (s.ok && turn) endTurn(true); }
       }
       for (let i = foes.length - 1; i >= 0; i--) {
         const f = foes[i]; f.m.position.addScaledVector(f.v, dt);
         ctx.burst(f.m.position, 0x66ff88, 1, 0.2);
         if (f.m.position.distanceTo(camW()) < 0.85) {
-          if (shieldT > 0) { ctx.sfx('block'); ctx.burst(f.m.position, [0x66ccff, 0xffffff], 40, 1.6); }
-          else if (running) {
-            hp--; ctx.sfx('hurt'); ctx.flash(); info();
-            if (hp <= 0) { running = false; ctx.lose('El mago enemigo te derrotó. Consejo: cuando veas el brillo verde, activa 🛡️ Protego.'); }
+          if (shieldT > 0 && running) { // ¡bloqueado! la bola rebota hacia el mago
+            ctx.sfx('block'); ctx.burst(f.m.position, [0x66ccff, 0xffffff], 40, 1.6); shieldT = 0.4;
+            enC.copy(en.position).setY(1.15);
+            const m = add(g, sph(0.1, 10), B(0x66ccff), f.m.position.x, f.m.position.y, f.m.position.z, false); m.add(glow(0x66ccff, 1.3));
+            shots.push({ m, v: enC.clone().sub(f.m.position).normalize().multiplyScalar(11), ok: true, kind: 'circle', col: 0x66ccff, life: 2 });
+          } else if (running) {
+            hp--; combo = 0; ctx.sfx('hurt'); ctx.flash(); ctx.shake(0.5); info(); endTurn(false);
+            if (hp <= 0) { running = false; legend(null); ctx.lose('El guardián de la montaña te derrotó. Consejo: dibuja la figura que muestra la runa. Con la runa ⭕, dibuja el círculo antes de que llegue la bola verde.'); }
+            else ctx.pop('¡AUCH!', 'bad');
           }
           remove(foes, i);
-        } else if (f.m.position.z > camW().z + 3) remove(foes, i);
+        } else if (f.m.position.z > camW().z + 3) { remove(foes, i); if (turn && turn.type === 'attack') endTurn(false); }
       }
     },
     dispose() {
-      alive = false; running = false; restoreEnv();
+      alive = false; running = false; restoreEnv(); if (xLeg) xLeg.dispose();
       camera.remove(wand); camera.remove(shield); camera.remove(shelf); disposeTree(wand); disposeTree(shield); disposeTree(shelf);
-      ui.classList.add('hidden'); document.getElementById('crosshair').classList.add('hidden');
+      ui.classList.add('hidden'); document.body.classList.remove('hasbar'); legend(null); cv.remove(); document.getElementById('crosshair').classList.add('hidden');
     }
   };
 }
@@ -1528,7 +1763,7 @@ function miami(ctx, opt) {
   };
 }
 
-/* ================= MUNDO 3: MIAMI HEAT — ARENA DE BALONCESTO ================= */
+/* ================= MUNDO 3: CHARLOTTE HORNETS — ARENA DE BALONCESTO (Spectrum Center) ================= */
 const PX = 68.27; // píxeles por metro en la textura de la cancha
 function courtTex() {
   return canvasTex(1024, 1912, (g, w, h) => {
@@ -1536,7 +1771,7 @@ function courtTex() {
     for (let x = 0; x < w; x += 7) for (let y = Math.random() * 300; y < h; y += 260 + Math.random() * 200) { g.fillStyle = 'rgba(60,30,10,.35)'; g.fillRect(x, y, 7, 2); }
     const X = m => (m + 7.5) * PX, Z = m => (m + 5.8) * PX, R = m => m * PX;
     const key = (z0, dir) => {
-      g.fillStyle = '#a8102a'; g.fillRect(X(-2.45), dir > 0 ? Z(z0) : Z(z0 - 5.8), R(4.9), R(5.8));
+      g.fillStyle = '#1d1160'; g.fillRect(X(-2.45), dir > 0 ? Z(z0) : Z(z0 - 5.8), R(4.9), R(5.8));
       g.strokeStyle = '#fff'; g.lineWidth = 6; g.strokeRect(X(-2.45), dir > 0 ? Z(z0) : Z(z0 - 5.8), R(4.9), R(5.8));
       const fz = z0 + dir * 5.8, bz = z0 + dir * 1.575;
       g.beginPath(); g.arc(X(0), Z(fz), R(1.8), 0, Math.PI * 2); g.stroke();
@@ -1547,13 +1782,33 @@ function courtTex() {
     key(-5.8, 1); key(22.2, -1);
     g.strokeStyle = '#fff'; g.lineWidth = 6;
     g.beginPath(); g.moveTo(0, Z(8.2)); g.lineTo(w, Z(8.2)); g.stroke();
-    g.fillStyle = '#a8102a'; g.beginPath(); g.arc(X(0), Z(8.2), R(1.8), 0, 7); g.fill(); g.stroke();
-    g.fillStyle = '#fff'; g.font = 'bold 80px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('MIAMI', X(0), Z(8.2));
+    g.fillStyle = '#00788c'; g.beginPath(); g.arc(X(0), Z(8.2), R(1.8), 0, 7); g.fill(); g.stroke();
+    g.fillStyle = '#fff'; g.font = 'bold 54px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('CHARLOTTE', X(0), Z(8.2));
     g.strokeStyle = '#111'; g.lineWidth = 16; g.strokeRect(8, 8, w - 16, h - 16);
   });
 }
-function hoop(g, z, rot) { // tablero de vidrio, aro, red y soporte (z = cara del tablero)
+const HOOP0 = { rim: { y: 3.05, z: 0.3786, r: 0.2286 }, board: { bottom: 2.9, top: 3.95, half: 0.9 } }; // medidas del tablero anterior
+function hoop(g, z, rot, main = true) { // tu tablero FBX (z = cara del tablero). El principal lleva red animada; el del fondo, la red del modelo
   const h = new THREE.Group(); h.position.set(0, 0, z); h.rotation.y = rot; g.add(h);
+  h.add(modelo(main ? 'tablero' : 'tablero-malla', { fallback: hoopOld }));
+  const info = modelInfo('tablero') || HOOP0, R = info.rim;
+  if (!main) return { h, info };
+  // red: rombos con hilos (se anima al encestar)
+  const RING = 6, PTS = 12, base = [], idx = [];
+  for (let r = 0; r < RING; r++) for (let k = 0; k < PTS; k++) {
+    const a = (k + (r % 2) * 0.5) / PTS * Math.PI * 2, rad = R.r - r * 0.016;
+    base.push(Math.cos(a) * rad, -r * 0.085, Math.sin(a) * rad);
+  }
+  for (let r = 0; r < RING - 1; r++) for (let k = 0; k < PTS; k++) {
+    const i = r * PTS + k, n1 = (r + 1) * PTS + k, n2 = (r + 1) * PTS + (r % 2 ? (k + 1) % PTS : (k + PTS - 1) % PTS);
+    idx.push(i, n1, i, n2);
+  }
+  const ng = new THREE.BufferGeometry(); ng.setAttribute('position', new THREE.Float32BufferAttribute(base.slice(), 3)); ng.setIndex(idx);
+  const net = new THREE.LineSegments(ng, temp(new THREE.LineBasicMaterial({ color: 0xffffff }))); net.position.set(0, R.y, R.z); h.add(net);
+  return { h, net, base, RING, PTS, info };
+}
+function hoopOld() { // tablero hecho por código (respaldo mientras carga el modelo)
+  const h = new THREE.Group();
   const glass = temp(new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, roughness: 0.03, metalness: 0.2, depthWrite: false }));
   add(h, box(1.8, 1.05, 0.04), glass, 0, 3.425, -0.02, false);
   const blk = M(0x111111, { metalness: 0.6, roughness: 0.4 }), wht = M(0xffffff, { roughness: 0.4 });
@@ -1565,23 +1820,12 @@ function hoop(g, z, rot) { // tablero de vidrio, aro, red y soporte (z = cara de
   add(h, box(1.4, 1.2, 2.2), M(0xa8102a, { roughness: 0.7 }), 0, 0.6, -2.7);
   const rim = add(h, new THREE.TorusGeometry(0.2286, 0.011, 12, 48), M(0xff4a1c, { metalness: 0.6, roughness: 0.35 }), 0, 3.05, 0.3786); rim.rotation.x = Math.PI / 2;
   add(h, box(0.1, 0.04, 0.16), M(0xff4a1c, { metalness: 0.6 }), 0, 3.05, 0.08);
-  // red: rombos con hilos (se anima al encestar)
-  const RING = 6, PTS = 12, base = [], idx = [];
-  for (let r = 0; r < RING; r++) for (let k = 0; k < PTS; k++) {
-    const a = (k + (r % 2) * 0.5) / PTS * Math.PI * 2, rad = 0.2286 - r * 0.016;
-    base.push(Math.cos(a) * rad, -r * 0.085, Math.sin(a) * rad);
-  }
-  for (let r = 0; r < RING - 1; r++) for (let k = 0; k < PTS; k++) {
-    const i = r * PTS + k, n1 = (r + 1) * PTS + k, n2 = (r + 1) * PTS + (r % 2 ? (k + 1) % PTS : (k + PTS - 1) % PTS);
-    idx.push(i, n1, i, n2);
-  }
-  const ng = new THREE.BufferGeometry(); ng.setAttribute('position', new THREE.Float32BufferAttribute(base.slice(), 3)); ng.setIndex(idx);
-  const net = new THREE.LineSegments(ng, temp(new THREE.LineBasicMaterial({ color: 0xffffff }))); net.position.set(0, 3.05, 0.3786); h.add(net);
-  return { h, net, base, RING, PTS };
+  return h;
 }
 function heat(ctx, opt) {
   const { camera, scene } = ctx, g = new THREE.Group(); ctx.root.add(g);
-  const RR = 0.2286, BR = 0.12, GRAV = 9.8, BB_Z = -4.6, RIM = new V3(0, 3.05, BB_Z + 0.3786);
+  const HI = modelInfo('tablero') || HOOP0; // medidas reales del tablero cargado (aro, alto y ancho del vidrio)
+  const RR = HI.rim.r, BR = 0.12, GRAV = 9.8, BB_Z = -4.6, RIM = new V3(0, HI.rim.y, BB_Z + HI.rim.z);
   g.add(sky(0x050507, 0x0b0b10, 0x050505));
   scene.fog = new THREE.Fog(0x0a0a10, 30, 80);
   lightRig(g, { sky: 0xfff4e8, ground: 0x2a1515, hemi: 0.55, sun: 0xffffff, sunI: 2.6, dir: [2, 18, 6], size: 10, target: [0, 0, -2] });
@@ -1589,18 +1833,18 @@ function heat(ctx, opt) {
   // Cancha y piso
   const floor = add(g, new THREE.PlaneGeometry(15, 28), temp(new THREE.MeshStandardMaterial({ map: courtTex(), roughness: 0.32, metalness: 0.05 })), 0, 0.005, 8.2, false);
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
-  const apron = add(g, new THREE.PlaneGeometry(26, 40), M(0x1a0d10, { roughness: 0.6 }), 0, 0, 8.2, false); apron.rotation.x = -Math.PI / 2; apron.receiveShadow = true;
-  const H1 = hoop(g, BB_Z, 0); hoop(g, 21, Math.PI);
+  const apron = add(g, new THREE.PlaneGeometry(26, 40), M(0x0d0f22, { roughness: 0.6 }), 0, 0, 8.2, false); apron.rotation.x = -Math.PI / 2; apron.receiveShadow = true;
+  const H1 = hoop(g, BB_Z, 0); hoop(g, 21, Math.PI, false);
   // Marcador sobre el tablero y pantalla gigante
-  const sbTex = canvasTex(512, 200, () => {});
-  add(H1.h, box(1.1, 0.42, 0.25), M(0x111111, { metalness: 0.5 }), 0, 4.25, -0.1);
-  add(H1.h, new THREE.PlaneGeometry(1.0, 0.36), temp(new THREE.MeshBasicMaterial({ map: sbTex })), 0, 4.25, 0.031, false);
+  const sbTex = canvasTex(512, 200, () => {}), sbY = HI.board.top + 0.3;
+  add(H1.h, box(1.1, 0.42, 0.25), M(0x111111, { metalness: 0.5 }), 0, sbY, -0.13);
+  add(H1.h, new THREE.PlaneGeometry(1.0, 0.36), temp(new THREE.MeshBasicMaterial({ map: sbTex })), 0, sbY, 0.001, false);
   const jt = new THREE.Group(); jt.position.set(0, 12, 8.2); g.add(jt);
   add(jt, box(7, 4, 7), M(0x0c0c0c, { metalness: 0.5, roughness: 0.5 }), 0, 0, 0, false);
   for (let i = 0; i < 4; i++) { const s = add(jt, new THREE.PlaneGeometry(6.4, 3.4), temp(new THREE.MeshBasicMaterial({ map: sbTex })), Math.sin(i * Math.PI / 2) * 3.52, 0, Math.cos(i * Math.PI / 2) * 3.52, false); s.rotation.y = i * Math.PI / 2; }
-  add(jt, box(7.2, 0.25, 7.2), M(0xff2a2a, { emissive: 0xff1a1a, emissiveIntensity: 2 }), 0, -2.1, 0, false);
+  add(jt, box(7.2, 0.25, 7.2), M(0x00a3b8, { emissive: 0x00788c, emissiveIntensity: 2 }), 0, -2.1, 0, false);
   // Tribunas con aficionados individuales: sentados, aplaudiendo, de pie y celebrando
-  const seat = M(0x2a0a10, { roughness: 0.9 }), seat2 = M(0x111111, { roughness: 0.9 });
+  const seat = M(0x14103a, { roughness: 0.9 }), seat2 = M(0x111111, { roughness: 0.9 });
   const fans = [];
   const stand = (cx, cz, len, alongX, out) => {
     const face = alongX ? (out < 0 ? 0 : Math.PI) : (out < 0 ? Math.PI / 2 : -Math.PI / 2);
@@ -1627,7 +1871,7 @@ function heat(ctx, opt) {
     clap: mg([[armC, -0.15, 0.02, 0.2, -1.2, 0.5], [armC, 0.15, 0.02, 0.2, -1.2, -0.5]]),
     up: mg([[armC, -0.3, 0.42, 0, 0, 2.7], [armC, 0.3, 0.42, 0, 0, -2.7]])
   };
-  const SH = [0xc8102e, 0xc8102e, 0xc8102e, 0x111111, 0x111111, 0xffffff, 0x3a5a8a, 0x8a8a8a, 0xf9a01b, 0x2c6e49, 0xd88aa8, 0xc8b08a];
+  const SH = [0x00788c, 0x00788c, 0x00788c, 0x1d1160, 0x1d1160, 0xffffff, 0xa1a1a4, 0x8a8a8a, 0x111111, 0x2c6e49, 0xd88aa8, 0xc8b08a];
   const lists = { torso: [], head: [], hair: [], legs: [], thighs: [], down: [], clap: [], up: [] };
   fans.forEach(f => {
     f.sit = f.pose === 'sit' || f.pose === 'clap';
@@ -1664,93 +1908,281 @@ function heat(ctx, opt) {
   // Techo, luces y pancartas
   add(g, box(60, 1, 70), M(0x0a0a0d), 0, 24, 8, false);
   for (let i = -2; i <= 2; i++) for (let j = -1; j <= 3; j++) { add(g, box(3, 0.2, 1), M(0xffffff, { emissive: 0xfff6e0, emissiveIntensity: 3 }), i * 8, 22.5, j * 8, false); const l = glow(0xfff2d0, 5, 0.45); l.position.set(i * 8, 22, j * 8); g.add(l); }
-  [['MIAMI', '#c8102e'], ['FLORIDA', '#111111'], ['AR 2026', '#c8102e'], ['FERIA', '#111111']].forEach(([t, bg], i) => {
-    const b = add(g, new THREE.PlaneGeometry(1.8, 3.6), temp(new THREE.MeshStandardMaterial({ map: canvasTex(128, 256, (c, w, h) => { c.fillStyle = bg; c.fillRect(0, 0, w, h); c.strokeStyle = '#f9a01b'; c.lineWidth = 6; c.strokeRect(6, 6, w - 12, h - 12); c.save(); c.translate(w / 2, h / 2); c.rotate(-Math.PI / 2); c.fillStyle = '#fff'; c.font = 'bold 44px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(t, 0, 0); c.restore(); }), side: THREE.DoubleSide })), -4.5 + i * 3, 15, -12, false);
+  [['CHARLOTTE', '#00788c'], ['HORNETS', '#1d1160'], ['AR 2026', '#00788c'], ['FERIA', '#1d1160']].forEach(([t, bg], i) => {
+    const b = add(g, new THREE.PlaneGeometry(1.8, 3.6), temp(new THREE.MeshStandardMaterial({ map: canvasTex(128, 256, (c, w, h) => { c.fillStyle = bg; c.fillRect(0, 0, w, h); c.strokeStyle = '#a1a1a4'; c.lineWidth = 6; c.strokeRect(6, 6, w - 12, h - 12); c.save(); c.translate(w / 2, h / 2); c.rotate(-Math.PI / 2); c.fillStyle = '#fff'; c.font = 'bold 44px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(t, 0, 0); c.restore(); }), side: THREE.DoubleSide })), -4.5 + i * 3, 15, -12, false);
     b.userData.ph = i; b.name = 'banner';
   });
   // Jugadores con proporciones atléticas reales, árbitro y bailarinas (modelo con animación capturada)
   const mixers = [];
-  const P = person({ h: 1.98, athlete: true, top: 0xc8102e, bottom: 0xc8102e, shorts: true, longShorts: true, shoe: 0xffffff, num: '26', hairStyle: 'buzz', band: 0x111111, skin: 0x6b4430 });
+  const P = person({ h: 1.98, athlete: true, top: 0x00788c, bottom: 0x00788c, shorts: true, longShorts: true, shoe: 0xffffff, num: '26', hairStyle: 'buzz', band: 0x111111, skin: 0x6b4430 });
   P.p.position.set(5.2, 0, -3.8); P.p.rotation.y = Math.atan2(-5.2, 3.8); g.add(P.p);
-  const R = person({ h: 2.03, athlete: true, top: 0x111111, bottom: 0x111111, shorts: true, longShorts: true, shoe: 0x111111, num: '7', hairStyle: 'short', skin: 0xc99a74 });
+  const R = person({ h: 2.03, athlete: true, top: 0xffffff, bottom: 0xffffff, shorts: true, longShorts: true, shoe: 0x111111, num: '7', hairStyle: 'short', skin: 0xc99a74 });
   R.p.position.set(-5.2, 0, -3.8); R.p.rotation.y = Math.atan2(5.2, 3.8); g.add(R.p);
   const ref = person({ h: 1.8, topMat: stripedMat('#ffffff', '#111111', 12), bottom: 0x111111, sleeves: true, shoe: 0x111111, hairStyle: 'bald' });
   ref.p.position.set(-6.9, 0, 0.6); ref.p.rotation.y = Math.PI / 2; g.add(ref.p);
   for (const [x, z, ry] of [[-4.6, -6.9, 0], [4.6, -6.9, 0], [-8.4, 4, Math.PI / 2], [8.4, 4, -Math.PI / 2]]) spawnGLB('Michelle.glb', g, mixers, { x, z, ry });
   // vallas LED alrededor de la cancha
-  const ledT = rep(canvasTex(1024, 64, (q, w, h) => { q.fillStyle = '#0a0a0a'; q.fillRect(0, 0, w, h); q.font = 'bold 44px system-ui'; q.textBaseline = 'middle'; const items = [['MIAMI', '#ff2a3a'], ['·', '#fff'], ['FLORIDA AR', '#ffffff'], ['·', '#fff'], ['¡VAMOS!', '#f9a01b'], ['·', '#fff'], ['🏀 2026', '#ff2a3a']]; let x = 20; for (const [t2, c] of items) { q.fillStyle = c; q.fillText(t2, x, h / 2 + 2); x += q.measureText(t2).width + 28; } }), 3, 1);
+  const ledT = rep(canvasTex(1024, 64, (q, w, h) => { q.fillStyle = '#0a0a0a'; q.fillRect(0, 0, w, h); q.font = 'bold 44px system-ui'; q.textBaseline = 'middle'; const items = [['CHARLOTTE', '#00b2c8'], ['·', '#fff'], ['CAROLINA DEL NORTE AR', '#ffffff'], ['·', '#fff'], ['¡VAMOS HORNETS!', '#9b7bff'], ['·', '#fff'], ['🏀 2026', '#00b2c8']]; let x = 20; for (const [t2, c] of items) { q.fillStyle = c; q.fillText(t2, x, h / 2 + 2); x += q.measureText(t2).width + 28; } }), 3, 1);
   const ledM = temp(new THREE.MeshBasicMaterial({ map: ledT }));
   for (const [x, z, len, ry] of [[0, -6.6, 14, 0], [-7.95, 8, 26, Math.PI / 2], [7.95, 8, 26, -Math.PI / 2]]) {
     const b = new THREE.Group(); b.position.set(x, 0, z); b.rotation.y = ry; g.add(b);
     add(b, box(len, 0.9, 0.2), M(0x111111), 0, 0.45, 0); add(b, new THREE.PlaneGeometry(len, 0.75), ledM, 0, 0.47, 0.105, false);
   }
-  const ball2 = add(g, sph(BR, 24), ballMat());
-  // Balón del jugador
-  const ball = add(g, sph(BR, 32), ballMat());
-  const st = { mode: 'rest', v: new V3(), t: 0, scored: false, fb: '', inNet: 0, lastBounce: 0 };
+  const ballModel = s => modelo('balon-basket', { fallback: () => { const m = new THREE.Mesh(sph(BR, s), ballMat()); m.castShadow = true; return m; }, onLoad: o => o.scale.setScalar(BR) });
+  const ball2 = ballModel(24); g.add(ball2);
+  // Balón del jugador (tu modelo FBX)
+  const ball = ballModel(32); g.add(ball);
+  // ===== Mecánica: TOCAR = driblar · MANTENER = subir el balón y llenar el medidor · SOLTAR en VERDE = tiro perfecto =====
+  // Driblar antes de tirar agranda la zona verde (ritmo). 3 canastas seguidas = ¡EN LLAMAS! (3 puntos por canasta).
+  const st = { mode: 'rest', v: new V3(), t: 0, scored: false, inNet: 0, lastBounce: 0, rim: false, perfect: false, err: 0, slowed: false };
   let running = false, alive = true, baskets = 0, pts = 0, shots = 0, cel = 0, netK = 0, netW = 0;
-  const _d = new V3(), _q = new V3(), _n = new V3();
-  const info = () => ctx.info(`🏀 Canastas ${baskets}/5 · Puntos ${pts} · Tiros ${shots}`);
+  let streak = 0, fire = false, time = 0, press = null, infoT = 0;
+  const drib = { t: 0, n: 0, last: 0, hit: false }, set = { t: 0, lat: 0, x0: 0 };
+  const _d = new V3(), _q = new V3(), _n = new V3(), _h = new V3(), _r = new V3(), _k = new V3();
+  const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const info = () => ctx.info(`🏀 ${baskets}/5 · ${pts} pts · ⏱ ${fmt(time)}${fire ? ' · 🔥' : streak ? ` · racha ${streak}` : ''}`);
   const SPOTS = [[0, 0, 'Tiro libre'], [-3.6, -1.2, 'Ala izquierda'], [3.6, -1.2, 'Ala derecha'], [0, 2.2, 'Frente al aro, más lejos'], [-2, 1.2, 'Diagonal izquierda']];
   const spot = new V3(0, 1.6, 0), spotFrom = new V3(0, 1.6, 0); let spotT = 1;
   function moveSpot(i) {
+    if (opt.xr) return goZone(i); // 🥽 en el visor: siguiente zona de tiro (salto con fundido)
     const S2 = SPOTS[i % SPOTS.length]; spotFrom.copy(camera.position); spot.set(S2[0], 1.6, S2[1]); spotT = 0;
     ctx.toast(`📍 Nueva posición: ${S2[2]}`, 2500);
   }
   function drawBoard() {
     const c = sbTex.userData.g, w = 512, h = 200;
-    c.fillStyle = '#050505'; c.fillRect(0, 0, w, h); c.strokeStyle = '#c8102e'; c.lineWidth = 8; c.strokeRect(4, 4, w - 8, h - 8);
+    c.fillStyle = '#050505'; c.fillRect(0, 0, w, h); c.strokeStyle = fire ? '#ff6a1a' : '#00788c'; c.lineWidth = 8; c.strokeRect(4, 4, w - 8, h - 8);
     c.textAlign = 'center'; c.fillStyle = '#ff3344'; c.font = 'bold 34px monospace'; c.fillText('PUNTOS    CANASTAS', w / 2, 50);
     c.font = 'bold 100px monospace'; c.fillStyle = '#ffd54a'; c.fillText(String(pts).padStart(2, '0'), 140, 160); c.fillText(`${baskets}/5`, 370, 160);
     sbTex.needsUpdate = true;
   }
   drawBoard();
-  const restPos = () => camera.localToWorld(_v.set(0, -0.42, -0.9));
-  const holdPos = () => ctx.ptr.ray.ray.at(0.75, _v);
-  ball.position.copy(restPos());
-
-  function shoot(vel) {
-    st.mode = 'fly'; st.t = 0; st.scored = false; st.inNet = 0; shots++; info(); ctx.sfx('throw');
-    const pw = clamp(1 + Math.log(Math.max(vel.y, 0.1) / 2.8) * 0.6, 0.5, 1.6), lat = clamp(vel.x / Math.max(vel.y, 0.1), -1, 1);
-    st.fb = pw > 1.15 ? 'Un poco más suave 👇' : pw < 0.85 ? '¡Más fuerte! 💪' : Math.abs(lat) > 0.16 ? 'Lanza más recto ⬆️' : '¡Casi!';
-    // la dirección se calcula respecto a hacia dónde miras
-    const fwd = _u.set(0, 0, -1).applyQuaternion(camera.quaternion); fwd.y = 0; fwd.normalize();
-    const right = new V3(-fwd.z, 0, fwd.x);
-    const tgt = RIM.clone().addScaledVector(right, lat * 0.55).add(_w.set(0, 0.03, 0.03 - (pw - 1) * 0.5));
-    const T = 1.0;
+  // dónde va el balón: en tu mano (abajo a la derecha), en el piso al driblar y frente a tu cara al preparar el tiro
+  const HOLD = new V3(0.16, -0.4, -0.85), SETP = new V3(0, 0.03, -0.72), DRIB_T = 0.42;
+  const handPos = o => camera.localToWorld(o.copy(HOLD));
+  const setPos = o => camera.localToWorld(o.set(SETP.x + set.lat * 0.08, SETP.y, SETP.z));
+  ball.position.copy(handPos(_h));
+  // ===== 🥽 Quest: agarrar con la PALMA, driblar empujando hacia tu piso, tirar con la barra (estilo 2K) y CLAVAR =====
+  // XZ: zonas de tiro (d = metros al aro, a = ángulo, pts = puntos). Al encestar pasas a la siguiente; la última es la clavada.
+  // GRAB: distancia de la palma al balón para que se pegue (m) · SET_Y: la barra empieza al subir el balón a esta altura (m, respecto a tus ojos)
+  // FILL: segundos que tarda la barra en llenarse · GREEN: dónde está el verde (0 abajo, 1 arriba) · GREEN_W: medio ancho del verde · YELLOW: ancho del amarillo
+  // SHOOT_V: rapidez de la mano (m/s) que suelta el tiro · DRIB_V: rapidez hacia abajo que cuenta como dribleo · DUNK_R: a qué distancia del aro puedes clavar (m)
+  // THROW_K / ASSIST / AIM_DEG: lanzamiento sin barra (con el balón bajo): fuerza, ayuda hacia el aro (0 a 1) y hasta qué ángulo ayuda
+  const XZ = [
+    { n: 'BANDEJA', d: 1.4, a: -0.6, pts: 2 }, { n: 'DOBLE', d: 3.6, a: 0.5, pts: 2 }, { n: 'TRIPLE', d: 6.75, a: 0, pts: 3 },
+    { n: 'DOBLE', d: 4.2, a: -0.8, pts: 2 }, { n: 'CLAVADA', d: 1.0, a: 0, pts: 2 }
+  ];
+  const XRB = { GRAB: 0.07, SET_Y: -0.08, FILL: 0.85, GREEN: 0.8, GREEN_W: 0.08, YELLOW: 0.07, SHOOT_V: 1.8, DRIB_V: 0.9, DUNK_R: 1.7, THROW_K: 1.1, ASSIST: 0.55, AIM_DEG: 30 };
+  let held = null, zone = 0, xset = null, cool = 0, dunkT = 0;
+  const dunkFrom = new V3(), _w2 = new V3(), _cq = new THREE.Quaternion();
+  const xr = () => ctx.xr();
+  const home = o => xr().gamePoint(0.15, xr().eye() - 0.45, -0.38, o); // el balón te espera flotando frente a tu pecho
+  // barra de tiro junto al balón, siempre de frente a ti: amarillo = pega en el aro · verde = entra
+  const meter3 = new THREE.Group(); meter3.visible = false; g.add(meter3);
+  const mbar = (w, h, c, o, k) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), temp(new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthTest: false, toneMapped: false }))); m.renderOrder = 60 + k; m.position.z = k * 0.001; meter3.add(m); return m; };
+  const MH = 0.26; mbar(0.05, MH + 0.02, 0x0b1026, 0.85, 0);
+  const mYel = mbar(0.036, 1, 0xffd54a, 0.9, 1), mGrn = mbar(0.036, 1, 0x3ddc84, 1, 2), mMark = mbar(0.07, 0.012, 0xffffff, 1, 3);
+  // aro de luz en el piso: tu zona de tiro
+  const zoneRing = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.36, 40), temp(new THREE.MeshBasicMaterial({ color: 0xffd54a, transparent: true, opacity: 0.85, side: THREE.DoubleSide, toneMapped: false, depthWrite: false })));
+  zoneRing.rotation.x = -Math.PI / 2; zoneRing.visible = false; g.add(zoneRing);
+  const greenW = () => XRB.GREEN_W + Math.min(drib.n, 4) * 0.012 + (fire ? 0.02 : 0); // driblar antes de tirar agranda el verde
+  const nearRim = () => { camera.getWorldPosition(_w2); return Math.hypot(_w2.x - RIM.x, _w2.z - RIM.z) < XRB.DUNK_R; };
+  function goZone(i) { // te lleva a la zona de tiro (mirando al aro)
+    zone = i % XZ.length; const Z = XZ[zone], x = RIM.x + Math.sin(Z.a) * Z.d, z = RIM.z + Math.cos(Z.a) * Z.d;
+    held = null; xset = null; meter3.visible = false;
+    ctx.teleport(x, z, RIM.x, RIM.z); zoneRing.position.set(x, 0.01, z); zoneRing.visible = true;
+    ctx.pop(Z.n); ctx.toast(zone === XZ.length - 1 ? '📍 CLAVADA: sube el balón sobre tu cabeza y bájalo fuerte hacia el aro' : `📍 ${Z.n}: ${Z.pts} puntos`, 3200);
+  }
+  const canGrab = () => cool <= 0 && (st.mode === 'rest' || st.mode === 'drib' || (st.mode === 'fly' && (st.drib || st.t > 0.6)));
+  function grab(inp) { held = inp; st.mode = 'held'; xset = null; ctx.sfx('pickup'); xr().haptic(0.4, 40, inp); }
+  function xrInput(type, inp) { // con controles: el botón de agarre (o el gatillo) agarra y suelta. Con las manos se usa la palma (xrHands)
+    if (!running || !inp.src || inp.src.hand) return;
+    if (type === 'selectstart' || type === 'squeezestart') { if (!held && canGrab() && inp.grabPos.distanceTo(ball.position) < BR + 0.2) grab(inp); }
+    else if (held === inp) letGo(inp, true);
+  }
+  function xrHands() { // con las manos: tocar el balón con la palma lo agarra; si la palma va encima y bajando, lo dribla
+    if (!running) return;
+    for (const inp of xr().inputs) {
+      if (!inp.src || !inp.src.hand || !inp.ok) continue;
+      if (held === inp) { letGo(inp, false); continue; }
+      if (held || !canGrab() || inp.palmPos.distanceTo(ball.position) > BR + XRB.GRAB) continue;
+      if (inp.pp.v.y < -XRB.DRIB_V && inp.palmPos.y > ball.position.y) dribble(inp, inp.pp.v); else grab(inp);
+    }
+  }
+  function letGo(inp, button) { // qué hiciste con el balón: clavada, tiro con la barra, dribleo o lanzamiento libre
+    const v = inp.pp.v, sp = v.length();
+    if (nearRim() && ball.position.y > xr().eye() + 0.02 && v.y < -2) return dunk();
+    if (xset && (button || (sp > XRB.SHOOT_V && xset.t > 0.2 && v.y > -0.3))) return meterShot(inp);
+    if (v.y < -XRB.DRIB_V && -v.y > Math.hypot(v.x, v.z)) return dribble(inp, v);
+    if (button || (sp > 3 && v.y > 0.5)) freeThrow(inp);
+  }
+  function dribble(inp, v) { // baja con la fuerza de tu mano y el rebote vuelve a la altura de tu palma
+    held = null; xset = null; meter3.visible = false; cool = 0.25;
+    Object.assign(st, { mode: 'fly', t: 0, scored: false, inNet: 0, rim: false, slowed: false, perfect: false, lastBounce: -1, drib: true, dribH: Math.max(0.7, inp.palmPos.y - 0.05) });
+    st.v.set(v.x * 0.2, Math.min(v.y * 1.3, -2.8), v.z * 0.2);
+  }
+  function meterShot(inp) { // tiro con la barra: verde entra, amarillo pega en el aro, fuera falla (pronto = corto, tarde = largo)
+    const m = xset.t / XRB.FILL, hw = greenW(), e = m - XRB.GREEN, perfect = Math.abs(e) <= hw, near = !perfect && Math.abs(e) <= hw + XRB.YELLOW;
+    const err = perfect ? 0 : near ? Math.sign(e) * 0.35 : clamp(e / 0.2, -1, 1);
+    const v = inp.pp.v, toR = _r.copy(RIM).sub(ball.position); let lat = 0;
+    if (!perfect && Math.hypot(v.x, v.z) > 0.5) lat = clamp(-Math.atan2(v.x * toR.z - v.z * toR.x, v.x * toR.x + v.z * toR.z) / 0.7, -1, 1) * 0.4; // muy de lado: se abre
+    held = null; xset = null; meter3.visible = false; cool = 0.4; st.drib = false; st.dribH = 0;
+    shoot(err, lat, perfect);
+    if (perfect) { ctx.pop('¡VERDE!'); ctx.sfx('perfect'); } else ctx.pop(near ? 'CASI…' : err < 0 ? 'MUY PRONTO' : 'MUY TARDE', 'bad');
+  }
+  function freeThrow(inp) { // lanzamiento sin barra (balón bajo): física real con un poco de ayuda hacia el aro
+    held = null; xset = null; meter3.visible = false; cool = 0.4;
+    const v = _k.copy(inp.pp.v).multiplyScalar(XRB.THROW_K);
+    Object.assign(st, { mode: 'fly', t: 0, scored: false, inNet: 0, rim: false, slowed: false, err: 0, perfect: false, lastBounce: -1, drib: false, dribH: 0 });
+    st.v.copy(v);
+    const toR = _r.copy(RIM).sub(ball.position), hd = Math.hypot(toR.x, toR.z), hs = Math.hypot(v.x, v.z);
+    if (hs < 0.4) { st.drib = true; return; } // sin fuerza: el balón cae y lo vuelves a agarrar
+    if (THREE.MathUtils.radToDeg(Math.acos(clamp((v.x * toR.x + v.z * toR.z) / (hs * hd), -1, 1))) < XRB.AIM_DEG) {
+      const T = clamp(Math.max(hd / hs, Math.sqrt(2 * (Math.max(toR.y, 0.1) + 0.84 * hd) / GRAV)), 0.6, 1.8), ideal = _q.copy(toR).divideScalar(T); ideal.y += 0.5 * GRAV * T;
+      st.v.lerp(ideal, XRB.ASSIST); // tiro en arco: entra cayendo con al menos 40°
+    }
+    shots++; drib.n = 0; info(); ctx.sfx('throw');
+  }
+  function dunk() { // ¡clavada! el balón vuela al aro y lo atraviesa (tu vista no se mueve)
+    held = null; xset = null; meter3.visible = false; cool = 0.6; dunkT = 0; dunkFrom.copy(ball.position);
+    Object.assign(st, { mode: 'dunk', dunk: true, drib: false, dribH: 0, scored: false, perfect: true, t: 0 }); shots++; info();
+    ctx.sfx('throw'); xr().haptic(1, 140);
+  }
+  function xrBall(dt) { // devuelve true si el visor se encargó del balón en este cuadro
+    cool -= dt; xrHands();
+    if (st.mode === 'held') {
+      if (!held || !held.src) { held = null; st.mode = 'rest'; meter3.visible = false; return true; }
+      ball.position.copy(held.palmPos).addScaledVector(held.palmN, BR + 0.015); ball.rotation.y += dt; // el balón descansa sobre tu palma
+      const eye = xr().eye(); // la barra aparece al subir el balón sobre tu cabeza; si lo bajas, se reinicia
+      if (!xset && ball.position.y > eye + XRB.SET_Y) { xset = { t: 0 }; ctx.sfx('charge'); }
+      else if (xset && ball.position.y < eye + XRB.SET_Y - 0.15) xset = null;
+      meter3.visible = !!xset;
+      if (xset) {
+        xset.t += dt; const m = xset.t / XRB.FILL, hw = greenW();
+        camera.getWorldQuaternion(_cq); meter3.quaternion.copy(_cq); meter3.position.copy(ball.position).add(_w2.set(0.2, 0, 0).applyQuaternion(_cq));
+        mGrn.scale.y = hw * 2 * MH; mGrn.position.y = (XRB.GREEN - 0.5) * MH;
+        mYel.scale.y = (hw + XRB.YELLOW) * 2 * MH; mYel.position.y = mGrn.position.y;
+        mMark.position.y = (Math.min(m, 1) - 0.5) * MH;
+        if (m > 1.3) meterShot(held); // esperaste demasiado: el tiro sale tarde
+      }
+      return true;
+    }
+    if (st.mode === 'dunk') {
+      dunkT += dt; const u = Math.min(1, dunkT / 0.22);
+      ball.position.lerpVectors(dunkFrom, _w2.copy(RIM).setY(RIM.y + 0.3), smooth(u));
+      if (u >= 1) { ball.position.set(RIM.x, RIM.y + 0.16, RIM.z); st.v.set(0, -4, 0); Object.assign(st, { mode: 'fly', t: 0, inNet: 0, rim: false }); ctx.shake(0.6); }
+      return true;
+    }
+    if (st.mode === 'rest' || st.mode === 'drib') {
+      ball.position.lerp(home(_h), 0.12); ball.rotation.y += dt;
+      if (drib.n && performance.now() - drib.last > 3000) drib.n = 0;
+      return true;
+    }
+    return false; // en el aire: la física de siempre (aro, tablero y piso)
+  }
+  function xrDribble() { // cada bote contra tu piso cuenta para el ritmo (agranda el verde de la barra)
+    drib.n++; drib.last = performance.now(); ctx.sfx('dribble');
+    if (drib.n >= 2 && drib.n <= 4) ctx.pop(`RITMO x${drib.n}`, 'small');
+  }
+  // medidor de tiro: se llena en FILL segundos; la zona verde está centrada en GREEN
+  const meterEl = document.getElementById('meter'), zoneEl = meterEl.querySelector('.zone'), markEl = meterEl.querySelector('.mark');
+  const FILL = 0.95, GREEN = 0.86;
+  const greenHalf = () => 0.06 + Math.min(drib.n, 4) * 0.012 + (fire ? 0.02 : 0);
+  function showMeter(on) {
+    meterEl.classList.toggle('hidden', !on); meterEl.classList.toggle('hot', fire);
+    const hw = greenHalf(); zoneEl.style.bottom = (GREEN - hw) * 100 + '%'; zoneEl.style.height = hw * 200 + '%'; markEl.style.bottom = '0%';
+  }
+  function dribble() {
+    if (st.mode !== 'rest') return;
+    st.mode = 'drib'; drib.t = 0; drib.hit = false;
+  }
+  function startSet(x0 = 0) {
+    if (st.mode !== 'rest' && st.mode !== 'drib') return;
+    st.mode = 'set'; set.t = 0; set.lat = 0; set.x0 = x0; showMeter(true); ctx.sfx('charge');
+  }
+  function cancelSet() { if (st.mode === 'set') { st.mode = 'rest'; showMeter(false); } }
+  function release() {
+    if (st.mode !== 'set') return;
+    const m = set.t / FILL, hw = greenHalf(), e = m - GREEN, perfect = Math.abs(e) <= hw;
+    const err = perfect ? 0 : clamp((e - Math.sign(e) * hw) / 0.3, -1, 1);
+    showMeter(false); shoot(err, set.lat, perfect);
+    if (perfect) { ctx.pop('¡PERFECTO!'); ctx.sfx('perfect'); if (navigator.vibrate) navigator.vibrate(25); }
+    else ctx.pop(err < 0 ? 'MUY PRONTO' : 'MUY TARDE', 'bad');
+  }
+  function shoot(err, lat, perfect) {
+    st.mode = 'fly'; st.t = 0; st.scored = false; st.inNet = 0; st.rim = false; st.perfect = perfect; st.err = err; st.slowed = false;
+    shots++; drib.n = 0; info(); ctx.sfx('throw');
+    // apunta solo hacia el aro (aunque mires hacia otro lado); soltar pronto = corto, tarde = largo
+    const from = opt.xr ? ball.position : camera.position, toRim = _r.copy(RIM).sub(from); toRim.y = 0; toRim.normalize();
+    const right = _k.set(-toRim.z, 0, toRim.x), tgt = RIM.clone().addScaledVector(right, lat * 0.5);
+    if (perfect) tgt.add(_w.set(rnd(-0.02, 0.02), 0.02, rnd(-0.02, 0.02)));
+    else { tgt.addScaledVector(toRim, err * 0.26 - 0.03).addScaledVector(right, rnd(-0.05, 0.05)); tgt.y += 0.03; }
+    const T = 0.95 + from.distanceTo(RIM) * 0.02;
     st.v.copy(tgt).sub(ball.position).divideScalar(T); st.v.y += 0.5 * GRAV * T;
   }
   function score() {
-    st.scored = true; st.inNet = 0.5; baskets++; pts += 2; cel = 2; netK = 1; info(); drawBoard();
+    st.scored = true; st.inNet = 0.5; baskets++; streak++; cel = 2; netK = 1;
+    const swish = !st.rim, wasFire = fire;
+    if (streak >= 3 && !fire) { fire = true; ctx.pop('¡EN LLAMAS! 🔥', 'fire'); ctx.sfx('fire'); ctx.shake(0.5); }
+    const dk = opt.xr && st.dunk; st.dunk = false; // 🥽 en el visor: puntos según la zona (clavada = 4)
+    const add2 = opt.xr ? (dk ? 4 : XZ[zone].pts) + (wasFire ? 1 : 0) + (swish && !dk ? 1 : 0) : (wasFire ? 3 : 2) + (swish ? 1 : 0); pts += add2;
+    if (dk) { ctx.pop(`¡CLAVADA! +${add2}`, 'fire'); ctx.sfx('fire'); }
+    else if (!(fire && !wasFire)) ctx.pop(swish ? `¡SWISH! +${add2}` : `¡CANASTA! +${add2}`, wasFire ? 'fire' : 'good');
+    info(); drawBoard(); ctx.shake(0.3);
     ctx.sfx('swish'); setTimeout(() => { ctx.sfx('crowd'); ctx.sfx('score'); }, 120);
-    ctx.burst(RIM, [0xff2a2a, 0xffffff, 0xf9a01b], 80, 2.5);
-    if (baskets >= 5) { running = false; setTimeout(() => ctx.win('heat'), 1300); }
+    ctx.burst(RIM, fire ? [0xff6a1a, 0xffd54a, 0xffffff] : [0x00b2c8, 0xffffff, 0x6a4bd8], 90, 2.5);
+    if (baskets >= 5) { running = false; finish(); }
     else setTimeout(() => { if (alive) moveSpot(baskets); }, 1600);
+  }
+  function finish() { // medalla según el tiempo y récord guardado en el celular
+    ctx.sfx('buzzer');
+    const medal = time <= 45 ? 'oro' : time <= 75 ? 'plata' : 'bronce', b = ctx.best('heat', Math.round(time), true);
+    setTimeout(() => ctx.win('heat', { medal, line: `⏱ ${fmt(time)} · ${pts} puntos · ${shots} tiros`, record: b.isNew ? '¡NUEVO RÉCORD!' : `RÉCORD: ${fmt(b.best)}` }), 1300);
+  }
+  function handMove(p) { // con la mano: bajarla rápido = driblar · subirla = preparar · golpe hacia arriba = soltar
+    const v = p.vel(120), y = p.ndc.y;
+    if (st.mode === 'rest' || st.mode === 'drib') {
+      if (y > 0.25) startSet(p.ndc.x);
+      else if (st.mode === 'rest' && v.y < -1.6) dribble();
+    } else if (st.mode === 'set') {
+      set.lat = clamp((p.ndc.x - set.x0) * 1.6, -1, 1);
+      if (v.y > 1.8 && set.t > 0.15) release(); else if (y < -0.15) cancelSet();
+    }
   }
   const intro = withIntro(ctx, opt, [
     { t: 0, p: [6, 9, 18], yaw: 0.35, pitch: -0.3 },
     { t: 2.8, p: [1.5, 3.5, 5], yaw: 0.1, pitch: -0.05 },
     { t: 4.3, p: [0, 1.6, 0], yaw: 0, pitch: 0.18 }
   ], 0, 0.15);
-  const startHint = () => alive && ctx.hint(ctx.isHand() ? '☝️ El balón sigue tu índice · sube el dedo rápido hacia la canasta para lanzar' : '👆 Pon el dedo y desliza rápido hacia la canasta');
+  const startHint = () => alive && ctx.hint(opt.xr ? '✋ Toca el balón con la palma · empújalo al piso para driblar · súbelo sobre tu cabeza y lánzalo en el <b>VERDE</b>' : ctx.isHand()
+    ? '✋ Baja la mano rápido para <b>driblar</b> · súbela para <b>preparar</b> y lánzala hacia arriba cuando la marca esté en el <b>VERDE</b>'
+    : '👆 <b>Toca</b> para driblar · <b>mantén</b> presionado y <b>suelta</b> cuando la marca esté en el <b>VERDE</b>');
   return {
-    camLock: !opt.quick, refreshHint: startHint,
-    start() { running = true; this.camLock = false; info(); startHint(); },
-    onDown() { if (intro.on) { intro.finish(); this.camLock = false; return; } if (running && st.mode === 'rest') st.mode = 'hold'; },
+    camLock: !opt.quick, refreshHint: startHint, xrWorld: { type: 'room', keep: [H1.h, ball, meter3, zoneRing] }, xrInput,
+    _dbg: { baskets: () => baskets, shots: () => shots, mode: () => st.mode, ball: () => ball.position.toArray(), rim: () => RIM.toArray() },
+    start() { running = true; this.camLock = false; info(); startHint(); if (opt.xr) goZone(0); },
+    onDown(p) {
+      if (intro.on) { intro.finish(); this.camLock = false; return; }
+      if (!running) return;
+      if (p.src === 'hand') { if (st.mode === 'set' && set.t > 0.15) release(); return; } // pinza = soltar
+      if (st.mode === 'rest' || st.mode === 'drib') press = { t: performance.now(), x: p.sx, set: false };
+    },
     onMove(p) {
       if (!running) return;
-      if (p.src === 'hand') {
-        if (st.mode === 'rest') st.mode = 'hold';
-        if (st.mode === 'hold') { const v = p.vel(120); if (v.y > 2.4) shoot(v); }
-      }
+      if (p.src === 'hand') { handMove(p); return; }
+      if (press && st.mode === 'set') set.lat = clamp((p.sx - press.x) / (innerWidth * 0.3), -1, 1); // deslizar mientras sostienes = apuntar
     },
-    onUp(p) { if (st.mode !== 'hold' || p.src === 'hand') return; const v = p.vel(110); if (v.y > 0.9) shoot(v); else st.mode = 'rest'; },
+    onUp(p) {
+      if (!running || p.src === 'hand' || !press) return;
+      press = null;
+      if (st.mode === 'set') { if (set.t < 0.15) { cancelSet(); dribble(); } else release(); }
+      else dribble();
+    },
     update(dt, t) {
       if (intro.on) { intro.update(dt); if (!intro.on) this.camLock = false; }
       // público, bailarinas y vallas LED
       mixers.forEach(m => m.update(dt));
       if ((this._f = (this._f || 0) + 1) % 2 === 0) layoutCrowd(t, cel);
-      ledT.offset.x = (ledT.offset.x + dt * 0.12) % 1;
+      ledT.offset.x = (ledT.offset.x + dt * (fire ? 0.4 : 0.12)) % 1;
       g.children.forEach(o => { if (o.name === 'banner') o.rotation.y = Math.sin(t * 0.8 + o.userData.ph) * 0.06; });
       // rival en defensa y árbitro
       R.legs.forEach(l => { l.th.rotation.x = -0.5; l.kn.rotation.x = 0.75; }); R.hips.position.y = R.leg - 0.16;
@@ -1764,7 +2196,7 @@ function heat(ctx, opt) {
         ball2.position.lerp(P.p.localToWorld(_v.set(0.4, 0.12, 0.3)), 0.2);
       } else {
         P.p.position.y = 0; P.hips.position.y = P.leg - 0.06 - dr * 0.04;
-        P.legs.forEach((l, i) => { l.th.rotation.x = -0.25 - dr * 0.1; l.kn.rotation.x = 0.4 + dr * 0.15; });
+        P.legs.forEach(l => { l.th.rotation.x = -0.25 - dr * 0.1; l.kn.rotation.x = 0.4 + dr * 0.15; });
         P.arms[0].sh.rotation.x = -0.3; P.arms[0].el.rotation.x = -0.6;
         P.arms[1].sh.rotation.x = -0.5 - dr * 0.3; P.arms[1].el.rotation.x = -0.4;
         ball2.position.copy(P.p.localToWorld(_v.set(0.32, BR + (1 - dr) * 0.72, 0.35)));
@@ -1783,58 +2215,85 @@ function heat(ctx, opt) {
         pa[i] = b[i] * sq; pa[i + 2] = b[i + 2] * sq; pa[i + 1] = b[i + 1] * (1 + k * 0.5 * Math.sin(netW * 0.7 - r * 2));
       }
       H1.net.geometry.attributes.position.needsUpdate = true;
-      // balón
+      // reloj, presionar largo = preparar tiro, y fuego
+      if (running) { time += dt; infoT += dt; if (infoT > 0.25) { infoT = 0; info(); } }
+      if (running && press && !press.set && (st.mode === 'rest' || st.mode === 'drib') && performance.now() - press.t > 200) { press.set = true; startSet(); }
+      if (running && ctx.isHand() && st.mode === 'set' && !ctx.handVisible() && set.t > 0.15) release(); // la mano salió por arriba: soltó
       ball.visible = !intro.on;
-      if (st.mode === 'rest') { ball.position.lerp(restPos(), 0.3); ball.rotation.y += dt; return; }
-      if (st.mode === 'hold') { if (ctx.isHand() && !ctx.handVisible()) { st.mode = 'rest'; return; } ball.position.lerp(holdPos(), 0.55); return; }
+      if (fire && ball.visible && Math.random() < 0.6) ctx.burst(ball.position, [0xff6a1a, 0xffb000, 0xffe08a], 1, 0.5);
+      // balón
+      if (opt.xr && xrBall(dt)) return;
+      if (st.mode === 'rest') { ball.position.lerp(handPos(_h), 0.3); ball.rotation.y += dt; if (drib.n && performance.now() - drib.last > 3000) drib.n = 0; return; }
+      if (st.mode === 'drib') {
+        drib.t += dt; const p = drib.t / DRIB_T, H = handPos(_h);
+        if (p < 0.5) ball.position.set(H.x, lerp(H.y, BR, (p * 2) ** 2), H.z);
+        else {
+          if (!drib.hit) { drib.hit = true; ctx.sfx('dribble'); ctx.shake(0.06); drib.n++; drib.last = performance.now(); if (drib.n >= 2 && drib.n <= 4) ctx.pop(`RITMO x${drib.n}`, 'small'); }
+          ball.position.set(H.x, lerp(BR, H.y, 1 - (1 - (p - 0.5) * 2) ** 2), H.z);
+        }
+        ball.rotation.x -= dt * 10;
+        if (p >= 1) { st.mode = 'rest'; ball.position.copy(H); }
+        return;
+      }
+      if (st.mode === 'set') {
+        set.t += dt; const m = set.t / FILL;
+        ball.position.lerp(setPos(_h), 0.35); ball.rotation.y += dt * 2;
+        markEl.style.bottom = Math.min(m, 1) * 100 + '%';
+        if (m > 1.25) release(); // si esperas demasiado, el balón sale tarde
+        return;
+      }
       const sub = 4, h = dt / sub, Pp = ball.position, front = BB_Z + 0.02;
       for (let i = 0; i < sub; i++) {
         const prevY = Pp.y;
         st.v.y -= GRAV * h; Pp.addScaledVector(st.v, h);
-        if (st.v.z < 0 && Pp.z - BR < front && Pp.z > BB_Z - 0.2 && Math.abs(Pp.x) < 0.9 && Pp.y > 2.9 && Pp.y < 3.95) { Pp.z = front + BR; st.v.z *= -0.6; st.v.x *= 0.85; ctx.sfx('rim'); }
+        if (st.v.z < 0 && Pp.z - BR < front && Pp.z > BB_Z - 0.2 && Math.abs(Pp.x) < HI.board.half && Pp.y > HI.board.bottom && Pp.y < HI.board.top) { Pp.z = front + BR; st.v.z *= -0.6; st.v.x *= 0.85; st.rim = true; ctx.sfx('rim'); }
         _d.set(Pp.x - RIM.x, 0, Pp.z - RIM.z); const L = _d.length() || 1e-4;
         _q.copy(RIM).addScaledVector(_d, RR / L); _n.copy(Pp).sub(_q); const dist = _n.length();
         if (dist < BR + 0.011) {
-          _n.divideScalar(dist || 1); Pp.copy(_q).addScaledVector(_n, BR + 0.012);
+          _n.divideScalar(dist || 1); Pp.copy(_q).addScaledVector(_n, BR + 0.012); st.rim = true;
           const vn = st.v.dot(_n); if (vn < 0) { st.v.addScaledVector(_n, -1.55 * vn).multiplyScalar(0.82); if (vn < -0.5) { ctx.sfx('rim'); netK = Math.max(netK, 0.3); } }
         }
         if (!st.scored && st.v.y < 0 && prevY >= RIM.y && Pp.y < RIM.y && L < RR - BR * 0.3) score();
         if (st.inNet > 0) { st.inNet -= h; st.v.x *= 0.9; st.v.z *= 0.9; st.v.y = Math.max(st.v.y, -2.5); Pp.x = lerp(Pp.x, RIM.x, 0.1); Pp.z = lerp(Pp.z, RIM.z, 0.1); }
-        if (Pp.y < BR) { Pp.y = BR; if (st.v.y < -1 && st.t - st.lastBounce > 0.15) { ctx.sfx('bounce'); st.lastBounce = st.t; } st.v.y *= -0.72; st.v.x *= 0.85; st.v.z *= 0.85; }
+        if (Pp.y < BR) { Pp.y = BR; if (st.v.y < -1 && st.t - st.lastBounce > 0.15) { ctx.sfx('bounce'); st.lastBounce = st.t; if (st.drib) xrDribble(); } st.v.y *= -0.72; st.v.x *= 0.85; st.v.z *= 0.85; if (st.drib && st.dribH) { st.v.y = Math.sqrt(2 * GRAV * Math.max(0.2, st.dribH - BR)); st.v.x *= 0.3; st.v.z *= 0.3; } } // 🥽 dribleo: el rebote vuelve a tu mano
       }
+      if (st.perfect && !st.slowed && Pp.distanceTo(RIM) < 1.4 && st.v.y < 0) { st.slowed = true; ctx.slowmo(0.5, 0.35); } // cámara lenta en el tiro perfecto
       ball.rotation.x -= dt * 8;
       st.t += dt;
       if (st.t > 2.8) {
         st.mode = 'rest';
-        if (!st.scored && running) { ctx.hint(st.fb); setTimeout(() => { if (running) startHint(); }, 1800); }
+        if (!st.scored && running && !st.drib) {
+          if (fire) { fire = false; ctx.pop('SE APAGÓ EL FUEGO', 'bad'); drawBoard(); }
+          streak = 0; info();
+          ctx.hint(opt.xr ? '¡Casi! Suelta el tiro cuando la marca esté en el <b>VERDE</b>' : st.perfect ? '¡Casi! Rebotó en el aro. ¡Otra vez!' : st.err < 0 ? 'Soltaste muy pronto ⏳ espera a que la marca llegue al <b>VERDE</b>' : 'Soltaste muy tarde ⏩ suelta cuando la marca esté en el <b>VERDE</b>');
+          setTimeout(() => { if (running) startHint(); }, 2400);
+        }
       }
     },
-    dispose() { alive = false; running = false; }
+    dispose() { alive = false; running = false; meterEl.classList.add('hidden'); }
   };
 }
 
 /* ================= Catálogo de destinos ================= */
 export const GAMES = {
   orlando: {
-    short: 'Orlando', title: '🏰 Orlando — Duelo mágico', winMsg: '¡Has conquistado Orlando!', create: orlando,
-    how: h => h
-      ? 'Tu varita sigue tu <b>dedo índice</b>. Apunta al mago y mantén el dedo sobre él: el hechizo se lanza solo. Muestra la <b>palma abierta ✋</b> para activar 🛡️ Protego cuando veas el brillo verde. Cambia de hechizo dejando el dedo quieto sobre los botones. <b>Acierta 6 ataques</b> (a la mitad el mago se enfurece y ataca más rápido).'
-      : 'Toca al mago para lanzarle el hechizo (o usa ✨ Lanzar). 🔴 Expelliarmus lo desarma y ⚡ Stupefy lo aturde. Cuando veas el brillo verde, elige 🛡️ Protego y lánzalo. Gira el celular o arrastra para mirar el parque. <b>Acierta 6 ataques</b> (a la mitad el mago se enfurece y ataca más rápido).',
-    fact: 'The Wizarding World of Harry Potter abrió su zona de Hogsmeade en Islands of Adventure en 2010 y Diagon Alley en Universal Studios Florida en 2014. El tren Hogwarts Express conecta ambos parques.'
+    short: 'Blue Ridge', title: '✨ Blue Ridge — Las luces de Brown Mountain', pix: 'BROWN MOUNTAIN', tag: 'MONTAÑAS BLUE RIDGE · DUELO', winMsg: '¡Venciste al guardián de Brown Mountain!', create: orlando,
+    how: h => 'Cuenta la leyenda que en los montes Blue Ridge flotan unas luces misteriosas. Su <b>guardián</b> te reta a un duelo. Encima de él aparece una <b>runa</b> con una figura. <b>Dibuja esa misma figura</b> ' + (h ? 'en el aire con tu <b>índice</b> (muévelo rápido y luego déjalo quieto)' : 'con el dedo en la pantalla') + ':'
+      + '<ol class="steps"><li>⚡ <b>Zigzag</b> = rayo: rompe su barrera de cristal.</li><li>➖ <b>Línea</b> = desarme: cuando baja la guardia.</li><li>⭕ <b>Círculo</b> = escudo: antes de que llegue su bola verde (¡la rebota!)' + (h ? '. También sirve la palma abierta ✋.' : '.') + '</li></ol>'
+      + 'Toca las figuras de abajo para ver cómo se dibujan. <b>Acierta 6 hechizos</b>; a la mitad el guardián se enfurece y va más rápido.',
+    fact: 'Las «luces de Brown Mountain» son la leyenda de fantasmas más famosa de Carolina del Norte: luces que flotan sobre una montaña de los Blue Ridge. Se ven mejor desde un mirador de la Blue Ridge Parkway. Cerca, en Asheville, está Biltmore, la casa privada más grande de EE. UU.'
   },
-  miami: {
-    short: 'Tour acuático', title: '🚤 Miami Beach — Tour acuático', winMsg: '¡Completaste el tour acuático!', create: miami,
-    how: h => 'Primero <b>elige tu vehículo</b>: lancha rápida o moto de agua. Después <b>conduce</b> por la bahía y los canales de Florida: ' + (h ? 'mueve tu <b>índice</b> a la izquierda o derecha para girar' : 'usa <b>◀ ▶</b> para girar, <b>⏫</b> para acelerar y <b>⏬</b> para frenar (en computador, las flechas del teclado; 📱 activa girar inclinando el celular)') + '. Pasa por dentro de los <b>5 aros naranjas</b> y esquiva las boyas y las lanchas. En cada aro te detienes: fotografía la fauna que se pide 📸 y responde una pregunta. Al final verás el despegue de un cohete 🚀.',
-    fact: 'Florida es conocida como “The Sunshine State” (el Estado del Sol). Recorriste Miami Beach, los Everglades, la Overseas Highway de los Cayos y la Costa Espacial.'
-  },
+  // el tour en lancha (clave 'miami') vive en scenes2.js (GAMES2.miami): Outer Banks. El viejo road trip de Florida de este archivo ya no se usa.
   heat: {
-    short: 'Miami Heat', title: '🏀 Miami Heat — Basketball AR', winMsg: '¡Eres una estrella del Miami Heat!', create: heat,
-    how: h => (h
-      ? 'Estás en la línea de tiro libre. El balón sigue tu <b>dedo índice</b>: súbelo rápido hacia la canasta para lanzar.'
-      : 'Empiezas en la línea de tiro libre. Pon el dedo en la pantalla y <b>desliza hacia arriba</b>, hacia la canasta. La velocidad del deslizamiento es la fuerza y la inclinación es la dirección.') + ' Gira el celular para ver la arena. <b>Encesta 5 balones</b>: después de cada canasta cambias de posición (tiro libre, alas y más lejos).',
-    fact: 'El Miami Heat entró a la NBA en 1988 como equipo de expansión y ha ganado tres campeonatos: 2006, 2012 y 2013.'
+    short: 'Hornets NBA', title: '🏀 Charlotte Hornets', pix: 'HORNETS NBA', tag: 'BASKET ARCADE · 5 CANASTAS', countdown: true,
+    winMsg: '¡Eres una estrella de los Charlotte Hornets!', create: heat,
+    how: h => '<ol class="steps">' + (h
+      ? '<li><b>Driblar:</b> baja la mano rápido frente a la cámara de atrás.</li><li><b>Preparar:</b> sube la mano; el balón va arriba y se llena la barra.</li><li><b>Tirar:</b> lanza la mano hacia arriba cuando la marca esté en el <b>VERDE</b>.</li>'
+      : '<li><b>Driblar:</b> toca la pantalla. Cada bote seguido agranda la zona verde.</li><li><b>Preparar:</b> mantén el dedo presionado; el balón sube y se llena la barra.</li><li><b>Tirar:</b> suelta cuando la marca esté en el <b>VERDE</b>. Desliza a un lado mientras sostienes para apuntar.</li>')
+      + '</ol><p>🔥 <b>3 canastas seguidas</b> = ¡EN LLAMAS! (más puntos). <b>Encesta 5</b> lo más rápido que puedas: tu tiempo te da medalla 🥇🥈🥉.</p>',
+    fact: 'Los Charlotte Hornets entraron a la NBA en 1988; juegan en el Spectrum Center y son famosos por sus colores turquesa y morado. Michael Jordan, que creció en Wilmington, Carolina del Norte, fue dueño del equipo.'
   }
 };
 
 export { turtle, dolphin, M, B, temp, keep, add, box, cyl, sph, cone, cap, smooth, easeOut, rnd, pick, canvasTex, rep, glow, glowTex, textTex, label, sky, lightRig, envFromSky, withIntro,
-  person, walkAnim, clapAnim, idleAnim, stripedMat, stripesTex, waterMat, palm, decoBuilding, car, lifeguard, spawnGLB, ballMat, SKINS, Q };
+  person, walkAnim, clapAnim, idleAnim, stripedMat, stripesTex, waterMat, palm, decoBuilding, car, lifeguard, spawnGLB, ballMat, SKINS, Q, pine, fallTree, blueRidge };

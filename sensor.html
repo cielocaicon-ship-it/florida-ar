@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1026">
+<title>Sensor de pies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Press+Start+2P&display=swap">
+<style>
+/* Sensor de pies del Modo Quest: misma paleta «arcade tropical» del juego (CSS/style.css) */
+:root{--night:#0b1026;--text:#fff;--text2:#c9d1ff;--ink:#1a0b2e;--pink:#ff4fa3;--orange:#ff8a00;--sun:#ffd54a;--sea:#24d1ff;--ok:#3ddc84;--bad:#ff4d5e;
+  --font-ui:'Baloo 2',system-ui,sans-serif;--font-px:'Press Start 2P',monospace;--r:18px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;background:radial-gradient(circle at 50% 0,#2e3f99,var(--night) 70%);color:var(--text);font:600 17px/1.45 var(--font-ui);padding:16px}
+main{max-width:1100px;margin:0 auto;display:grid;gap:16px}
+h1{font:clamp(14px,3vw,20px)/1.5 var(--font-px);color:var(--sun);text-shadow:3px 3px 0 #b8005a}
+.row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+.panel{flex:1 1 320px;background:linear-gradient(165deg,rgba(30,40,110,.95),rgba(56,24,96,.95));border:1px solid rgba(255,255,255,.16);border-radius:var(--r);padding:18px;display:grid;gap:12px}
+ol{padding-left:22px;display:grid;gap:6px}
+label{color:var(--text2)}
+input{font:20px var(--font-px);width:7.5ch;padding:12px;border-radius:12px;border:2px solid rgba(255,255,255,.3);background:var(--night);color:#fff;letter-spacing:4px}
+button{font:800 17px var(--font-ui);min-height:48px;padding:8px 18px;border:0;border-radius:14px;cursor:pointer;color:var(--ink);background:linear-gradient(180deg,#ffe58a,var(--sun) 35%,var(--orange));transition:transform 150ms cubic-bezier(.2,0,0,1)}
+button:active{transform:scale(.97)}
+button.ghost{background:rgba(255,255,255,.12);color:#fff}
+:focus-visible{outline:3px solid var(--sea);outline-offset:3px}
+.view{flex:2 1 480px;position:relative;aspect-ratio:16/9;border-radius:var(--r);overflow:hidden;background:#000;border:2px solid rgba(255,255,255,.16)}
+.view.kick{border-color:var(--sun)}
+video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transform:scaleX(-1)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.mid{color:var(--sun)}
+#kick{font:clamp(11px,2vw,14px)/1.6 var(--font-px);color:var(--sun);min-height:1.6em}
+.small{font-size:14px;color:var(--text2)}
+@media (prefers-reduced-motion:reduce){button{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>CAROLINA · SENSOR DE PIES 🦶</h1>
+  <div class="row">
+    <section class="panel" aria-labelledby="pasos">
+      <h2 id="pasos" class="small">Para patear con tus pies en el Modo Quest</h2>
+      <ol>
+        <li>En el visor elige <b>🦶 Con mis pies (PC)</b>: te muestra un código.</li>
+        <li>Escríbelo aquí y toca <b>Conectar</b>.</li>
+        <li>Pon esta PC frente a ti (hacia el arco), a 2 o 3 metros. Debe verse tu cuerpo entero, con los pies.</li>
+        <li>¡Patea el balón que ves en tu piso!</li>
+      </ol>
+      <label for="code">Código del visor</label>
+      <div class="row" style="gap:10px;align-items:center"><input id="code" inputmode="numeric" maxlength="4" autocomplete="off" aria-describedby="net"><button id="go">Conectar</button></div>
+      <p id="net" role="status" aria-live="polite">Sin conectar</p>
+      <p>Cámara: <span id="st" role="status" aria-live="polite">apagada</span></p>
+      <p id="kick" aria-live="polite"></p>
+      <div class="row" style="gap:10px"><button id="cam" class="ghost">📷 Encender cámara</button><button id="sens" class="ghost">⚡ Sensibilidad: normal</button></div>
+      <p class="small">🔒 El video no sale de esta PC: al visor solo se envía «patada: fuerza y dirección».</p>
+    </section>
+    <section class="view" id="view" aria-label="Vista de la cámara con tus piernas marcadas"><video id="v" playsinline muted></video><canvas id="cv"></canvas></section>
+  </div>
+</main>
+<script type="module" src="sensor.js"></script>
+</body>
+</html>
