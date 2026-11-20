@@ -324,12 +324,6 @@ function ballMat() { // balón con textura granulada y costuras
 
 /* ================= INICIO: cofre mágico en realidad aumentada ================= */
 const ICONS = {
-  orlando() {
-    const i = new THREE.Group(), st = M(0xd8d2e6), rf = M(0x5b2ca0);
-    add(i, cyl(0.07, 0.08, 0.24), st, 0, -0.04, 0); add(i, cone(0.1, 0.16), rf, 0, 0.16, 0);
-    for (const x of [-0.12, 0.12]) { add(i, cyl(0.045, 0.05, 0.16), st, x, -0.08, 0); add(i, cone(0.065, 0.11), rf, x, 0.055, 0); }
-    return i;
-  },
   miami() { // faro del Cabo Hatteras en miniatura
     const i = new THREE.Group(); add(i, new THREE.CylinderGeometry(0.035, 0.06, 0.34, 16), temp(new THREE.MeshStandardMaterial({ color: 0xffffff, map: canvasTex(64, 128, (c, w, h) => { c.fillStyle = '#f4f1ea'; c.fillRect(0, 0, w, h); c.fillStyle = '#151515'; for (const o of [-w, 0, w]) for (let k = 0; k < 2; k++) { const x0 = o + k * w / 2; c.beginPath(); c.moveTo(x0, h); c.lineTo(x0 + w / 4, h); c.lineTo(x0 + w / 4 + w, 0); c.lineTo(x0 + w, 0); c.fill(); } }) })), 0, -0.05, 0);
     add(i, sph(0.04, 12), M(0xfff3c0, { emissive: 0xffe08a, emissiveIntensity: 2 }), 0, 0.15, 0); i.add(glow(0xffd54a, 0.3)); return i;
@@ -2276,13 +2270,7 @@ function heat(ctx, opt) {
 
 /* ================= Catálogo de destinos ================= */
 export const GAMES = {
-  orlando: {
-    short: 'Blue Ridge', title: '✨ Blue Ridge — Las luces de Brown Mountain', pix: 'BROWN MOUNTAIN', tag: 'MONTAÑAS BLUE RIDGE · DUELO', winMsg: '¡Venciste al guardián de Brown Mountain!', create: orlando,
-    how: h => 'Cuenta la leyenda que en los montes Blue Ridge flotan unas luces misteriosas. Su <b>guardián</b> te reta a un duelo. Encima de él aparece una <b>runa</b> con una figura. <b>Dibuja esa misma figura</b> ' + (h ? 'en el aire con tu <b>índice</b> (muévelo rápido y luego déjalo quieto)' : 'con el dedo en la pantalla') + ':'
-      + '<ol class="steps"><li>⚡ <b>Zigzag</b> = rayo: rompe su barrera de cristal.</li><li>➖ <b>Línea</b> = desarme: cuando baja la guardia.</li><li>⭕ <b>Círculo</b> = escudo: antes de que llegue su bola verde (¡la rebota!)' + (h ? '. También sirve la palma abierta ✋.' : '.') + '</li></ol>'
-      + 'Toca las figuras de abajo para ver cómo se dibujan. <b>Acierta 6 hechizos</b>; a la mitad el guardián se enfurece y va más rápido.',
-    fact: 'Las «luces de Brown Mountain» son la leyenda de fantasmas más famosa de Carolina del Norte: luces que flotan sobre una montaña de los Blue Ridge. Se ven mejor desde un mirador de la Blue Ridge Parkway. Cerca, en Asheville, está Biltmore, la casa privada más grande de EE. UU.'
-  },
+  // la clave 'orlando' ahora es «Kitty Hawk — El primer vuelo» (scenes2.js, GAMES2.orlando). El duelo de magos ya no se usa.
   // el tour en lancha (clave 'miami') vive en scenes2.js (GAMES2.miami): Outer Banks. El viejo road trip de Florida de este archivo ya no se usa.
   heat: {
     short: 'Hornets NBA', title: '🏀 Charlotte Hornets', pix: 'HORNETS NBA', tag: 'BASKET ARCADE · 5 CANASTAS', countdown: true,

@@ -27,11 +27,11 @@ const SPORTS = {
   miami: { c: '#24d1ff', how: 'Viajas de pie en una lancha (o moto de agua) por los Outer Banks de Carolina del Norte; la playa, los faros y los caballos salvajes quedan a tu derecha. Para cambiar de carril inclina el cuerpo a la izquierda o a la derecha (o usa los botones ◀ ▶ de tu derecha o la palanca del control). Recoge estrellas ⭐, esquiva las boyas 🔴🟢, responde 5 preguntas y fotografía los animales: apúntalos con la mano y junta los dedos 📸. Si te mareas, cierra los ojos un momento o quítate el visor.' },
   heat: { c: '#ff8a00', full: 'Cancha completa', how: 'Toca el balón con la palma para agarrarlo. Empújalo hacia el piso para driblar: vuelve a tu mano. Para tirar, súbelo sobre tu cabeza y lánzalo cuando la barra esté en VERDE. Tiras desde la bandeja, el doble, el triple y al final puedes hacer una CLAVADA. Mete 5 canastas.' },
   fg: { c: '#3ddc84', full: 'Estadio completo', how: 'El estadio se abre como una ventana. Golpea el balón con la palma hacia los postes: más fuerte llega más lejos y hacia un lado apuntas a ese lado. Ojo: los jugadores cambian los postes de lado.' },
-  orlando: { c: '#9b5cff', how: 'Elige tu varita tocándola. Para lanzar un hechizo junta el índice y el pulgar y dibuja en el aire con la varita la figura de la runa del guardián de Brown Mountain: zigzag = rayo ⚡, línea = desarme ➖ y círculo = escudo ⭕. Al soltar los dedos sale el hechizo. Tu palma abierta hacia el guardián también hace escudo.' },
+  orlando: { c: '#9b5cff', how: 'El primer vuelo se juega en el celular.' },
   heroes: { c: '#ff6a1a', how: 'Elige tu poder tocándolo. Apunta con la mano derecha al dron del aro rojo y junta los dedos (pinza) para atacar. Tu mano izquierda lleva un escudo de energía: ponlo frente a las bolas rojas para bloquearlas. ¡También puedes esquivarlas moviéndote!' },
   penalty: { c: '#24d1ff', full: 'Estadio completo', how: 'El estadio se abre como una ventana. Golpea el balón con la palma hacia el arco: si golpeas hacia arriba va alto y hacia un lado apuntas a esa esquina. La esquina dorada vale doble.' }
 };
-const WORLDS = ['orlando', 'heroes', 'city', 'miami']; // fila de mundos en realidad virtual del menú (en este orden)
+const WORLDS = ['heroes', 'city', 'miami']; // 'orlando' (primer vuelo) se juega solo en el celular // fila de mundos en realidad virtual del menú (en este orden)
 
 /* ================= Estilo «arcade tropical» (los mismos colores de CSS/style.css) ================= */
 const C = { ink: '#1a0b2e', violet: '#2a0e4a', pink: '#ff4fa3', orange: '#ff8a00', sun: '#ffd54a', sea: '#24d1ff', ok: '#3ddc84', bad: '#ff4d5e', text2: '#c9d1ff' };
@@ -180,7 +180,7 @@ export function initXR(api) {
       g.font = `600 22px ${UIF}`; g.fillStyle = got ? C.sun : C.text2; g.fillText(got ? '⭐ ¡Estrella conseguida!' : 'Toca para jugar', W / 2, 202);
     };
   }
-  function drawWorld(k) { // ficha de mundo (Blue Ridge, Research Triangle, Charlotte, Outer Banks): horizontal, con su color
+  function drawWorld(k) { // ficha de mundo (Research Triangle, Charlotte, Outer Banks): horizontal, con su color
     const G = GAMES[k], icon = (ORDER.find(([q]) => q === k) || [])[1], acc = SPORTS[k].c;
     return (g, W, H, st) => {
       const hov = st === 'hover', got = !!api.stars[k];
@@ -482,7 +482,7 @@ export function initXR(api) {
     gamePoint(-0.5, eye - 0.72, -0.28, bar.position); bar.lookAt(spot.x, bar.position.y + 0.25, spot.z);
     if (legendG) { gamePoint(0.5, eye - 0.62, -0.3, legendG.position); legendG.lookAt(spot.x, legendG.position.y + 0.25, spot.z); }
   }
-  // leyenda del juego a tu derecha: una columna de botones (hechizos de Blue Ridge, armas del Research Triangle…); set(k) ilumina uno
+  // leyenda del juego a tu derecha: una columna de botones (armas del Research Triangle…); set(k) ilumina uno
   let legendG = null;
   function legend(items, onPick) {
     dropLegend(); const gL = new THREE.Group(); legendG = gL; gL.userData.on = null; ui.add(gL);

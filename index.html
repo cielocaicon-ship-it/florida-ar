@@ -45,12 +45,6 @@
   <div id="info" class="hidden"></div>
   <div id="hint" class="hidden"></div>
 
-  <!-- Blue Ridge (clave orlando): leyenda de figuras. Tocar una muestra cómo se dibuja; se ilumina la que pide la runa del guardián -->
-  <div id="spells" class="hidden" aria-label="Figuras de los hechizos">
-    <button class="sp" data-s="zigzag" style="--c:#ffd23a">⚡<span>Zigzag · Rayo</span></button>
-    <button class="sp" data-s="line" style="--c:#ff4d5e">➖<span>Línea · Desarme</span></button>
-    <button class="sp" data-s="circle" style="--c:#66ccff">⭕<span>Círculo · Escudo</span></button>
-  </div>
 
   <!-- Medidor de tiro (baloncesto): suelta cuando la marca esté en la zona verde -->
   <div id="meter" class="hidden" aria-hidden="true"><div class="zone"></div><div class="mark"></div></div>
@@ -60,6 +54,7 @@
 
   <!-- Intro: Welcome to North Carolina! -->
   <section id="welcome" class="screen show intro" aria-labelledby="introT">
+    <div class="langsw" role="group" aria-label="Idioma"><button data-lang="en" class="on">🇺🇸 English</button><button data-lang="es">🇪🇸 Español</button></div>
     <div class="sky" aria-hidden="true">
       <div class="sun"></div>
       <svg class="palm palm-l" viewBox="0 0 200 320"><g fill="#1d0b33"><rect x="92" y="250" width="16" height="70"/><path d="M100 10 L150 110 L124 110 L170 190 L136 190 L190 270 L10 270 L64 190 L30 190 L76 110 L50 110Z"/></g></svg>
@@ -70,7 +65,7 @@
       <p class="intro-w">WELCOME TO NORTH</p>
       <h1 id="introT" class="intro-t" aria-label="North Carolina!"><span style="--i:0">C</span><span style="--i:1">A</span><span style="--i:2">R</span><span style="--i:3">O</span><span style="--i:4">L</span><span style="--i:5">I</span><span style="--i:6">N</span><span style="--i:7">A</span><span style="--i:8">!</span></h1>
       <p class="intro-sub">AR ADVENTURE</p>
-      <p class="intro-p">Abre el cofre mágico y viaja por las montañas Blue Ridge, Charlotte, el Research Triangle, la costa de los Outer Banks y los deportes de Carolina del Norte en realidad aumentada.</p>
+      <p class="intro-p">Abre el cofre y viaja por Kitty Hawk, Charlotte, el Research Triangle, la costa de los Outer Banks y los deportes de Carolina del Norte en realidad aumentada.</p>
       <button id="bStart" class="btn primary big">▶ TOCA PARA EMPEZAR</button>
       <p class="small">En celular, úsalo en vertical 📱</p>
     </div>
@@ -109,6 +104,7 @@
       <button id="bGyro" class="row hidden"><i aria-hidden="true">🧭</i><span>Sensor de movimiento</span></button>
       <button id="bFx" class="row"><i aria-hidden="true">✨</i><span>Efectos</span></button>
       <div class="qrow" role="group" aria-label="Calidad gráfica"><span>Calidad</span><button class="qbtn" data-q="0">Baja</button><button class="qbtn" data-q="1">Media</button><button class="qbtn" data-q="2">Alta</button></div>
+      <div class="qrow" role="group" aria-label="Idioma"><span>🌐 Idioma</span><button class="qbtn" data-lang="en">English</button><button class="qbtn" data-lang="es">Español</button></div>
       <button id="menuClose" class="btn primary">Seguir jugando</button>
     </div>
   </div>

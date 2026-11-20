@@ -1,5 +1,6 @@
 // CAROLINA AR ADVENTURE — núcleo: cámara, render, mirada (giroscopio/arrastre), dedo índice, audio, interfaz y estrellas.
 import * as THREE from 'three';
+import { T as tr, I18N, applyLang, startLang } from './i18n.js'; // idioma: inglés al abrir, español opcional
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { startHands, stopHands } from './handTracking.js';
 import { createHub, GAMES as G1, Sparks, starMesh, disposeTree, setQuality } from './scenes.js';
@@ -9,8 +10,9 @@ import { preloadModels } from './models.js';
 import { initXR, QUEST } from './xr.js';
 preloadModels(); // tus modelos 3D (assets/modelos) se cargan desde el inicio, mientras la persona lee la bienvenida
 const GAMES = { ...G1, ...GAMES2 };
-// claves internas heredadas de la versión de Florida: orlando = Blue Ridge · heroes = Research Triangle · city = Charlotte · miami = Outer Banks · heat = Hornets · fg = Panthers · penalty = Charlotte FC
-const ORDER = [['orlando', '✨'], ['heroes', '🤖'], ['city', '🏙️'], ['miami', '🚤'], ['heat', '🏀'], ['fg', '🏈'], ['penalty', '⚽']];
+startLang(); // la página arranca en inglés
+// claves internas heredadas de la versión de Florida: orlando = Kitty Hawk (primer vuelo) · heroes = Research Triangle · city = Charlotte · miami = Outer Banks · heat = Hornets · fg = Panthers · penalty = Charlotte FC
+const ORDER = [['orlando', '✈️'], ['heroes', '🤖'], ['city', '🏙️'], ['miami', '🚤'], ['heat', '🏀'], ['fg', '🏈'], ['penalty', '⚽']];
 
 const $ = id => document.getElementById(id);
 const video = $('cam');
@@ -268,6 +270,7 @@ function show(id) { document.querySelectorAll('.screen').forEach(s => s.classLis
 // La fuente pixel no trae letras con tilde: en los textos pixel se quitan las tildes (la ñ se conserva), como en las máquinas arcade.
 const pxText = s => String(s).normalize('NFD').replace(/[̀-̂̄-ͯ]/g, '').normalize('NFC');
 function card(title, html, btns, kind = '') { // tarjeta (ventana) con título pixel; kind: '' | 'win' | 'lose' | 'how'
+  title = tr(title); html = tr(html); btns = btns.map(b => ({ ...b, label: tr(b.label) }));
   if (inXR()) return XRM.card(title, html, btns, kind);
   const c = $('card');
   c.dataset.kind = kind;
@@ -289,11 +292,11 @@ const store = { get: (k, d) => { try { const v = localStorage.getItem('fl_' + k)
 S.fx = store.get('fx', !reduceMotion); // false = «Reducir efectos» (sin sacudidas ni cámara lenta)
 let stageT = null;
 function stageTitle(key) { // título pixel al entrar a cada minijuego + jingle de «entrar al videojuego»
-  if (inXR()) { sfx('stage'); return XRM.pop(GAMES[key].pix || GAMES[key].short); }
+  if (inXR()) { sfx('stage'); return XRM.pop(tr(GAMES[key].pix || GAMES[key].short)); }
   const G = GAMES[key], n = ORDER.findIndex(([k]) => k === key) + 1, st = $('stage');
   st.querySelector('.stage-n').textContent = `STAGE ${n}`;
-  st.querySelector('.stage-t').textContent = pxText(G.pix || G.short.toUpperCase());
-  st.querySelector('.stage-s').textContent = pxText(G.tag || '');
+  st.querySelector('.stage-t').textContent = pxText(tr(G.pix || G.short.toUpperCase()));
+  st.querySelector('.stage-s').textContent = pxText(tr(G.tag || ''));
   st.classList.remove('hidden', 'out'); void st.offsetWidth; st.classList.add('in');
   sfx('stage'); if (navigator.vibrate) navigator.vibrate([20, 60, 30]);
   clearTimeout(stageT); stageT = setTimeout(hideStage, 2400);
@@ -311,6 +314,7 @@ function countdown(cb) { // 3 · 2 · 1 · ¡YA!
   step();
 }
 function pop(text, kind = 'good') { // mensaje pixel en el centro: «¡PERFECTO!», «+3», «¡EN LLAMAS!»…
+  text = tr(text);
   if (inXR()) return XRM.pop(text, kind);
   const el = document.createElement('div'); el.className = 'pop ' + kind; el.textContent = pxText(text);
   $('pops').appendChild(el); setTimeout(() => el.remove(), 1150);
@@ -324,9 +328,9 @@ function best(key, value, lowerIsBetter = false) { // guarda el récord de cada 
   return { isNew, best: isNew ? value : old };
 }
 let toastT;
-function toast(msg, ms = 3000) { if (inXR()) return XRM.toast(msg, ms); const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
-function setInfo(t) { if (inXR()) return XRM.info(t); $('info').innerHTML = t || ''; $('info').classList.toggle('hidden', !t); }
-function setHint(t) { if (inXR()) return XRM.hint(t); $('hint').innerHTML = t || ''; $('hint').classList.toggle('hidden', !t); }
+function toast(msg, ms = 3000) { msg = tr(msg); if (inXR()) return XRM.toast(msg, ms); const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
+function setInfo(t) { t = tr(t); if (inXR()) return XRM.info(t); $('info').innerHTML = t || ''; $('info').classList.toggle('hidden', !t); }
+function setHint(t) { t = tr(t); if (inXR()) return XRM.hint(t); $('hint').innerHTML = t || ''; $('hint').classList.toggle('hidden', !t); }
 function flash(kind = 'red') { if (inXR()) return XRM.flash(kind); const f = $('flash'); f.className = kind; f.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on'))); }
 function fade(on) { if (inXR()) return XRM.fade(on); $('fade').classList.toggle('on', on); }
 const NAMES = ORDER;
@@ -608,7 +612,7 @@ function finale() {
       sparks.emit(camera.localToWorld(new THREE.Vector3(Math.random() * 1.6 - 0.8, Math.random() * 1.2 - 0.3, -2.5)), [0xff4fa3, 0xffd54a, 0x24d1ff, 0x7bff6a, 0xff3b30], 40, 2.2);
       if (++n > 14) clearInterval(iv);
     }, 180);
-    card('¡FELICIDADES!', '<p class="win-t">HAS COMPLETADO TU TOUR POR CAROLINA DEL NORTE</p><div class="bigstar">⭐⭐⭐⭐⭐⭐⭐</div><p>Viste las luces de Brown Mountain en los Blue Ridge, salvaste el Research Triangle, exploraste Charlotte, navegaste por los Outer Banks y jugaste con los Hornets, los Panthers y el Charlotte FC.</p>',
+    card('¡FELICIDADES!', '<p class="win-t">HAS COMPLETADO TU TOUR POR CAROLINA DEL NORTE</p><div class="bigstar">⭐⭐⭐⭐⭐⭐⭐</div><p>Volaste como los hermanos Wright en Kitty Hawk, salvaste el Research Triangle, exploraste Charlotte, navegaste por los Outer Banks y jugaste con los Hornets, los Panthers y el Charlotte FC.</p>',
       [{ label: '↻ Volver a jugar', primary: true, fn: replay }], 'win');
   }, 400);
 }
@@ -630,6 +634,11 @@ async function startCamera(facing = isMobile ? 'environment' : 'user') {
 }
 
 /* ================= Flujo de pantallas ================= */
+document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', e => { // 🌐 cambiar idioma (inglés / español)
+  e.stopPropagation(); applyLang(b.dataset.lang); sfx('click'); updateStars();
+  const sc = S.scene; if (sc && sc.refreshHint) sc.refreshHint();
+  if (S.key === 'hub') enter('hub', { opened: true }); // los letreros 3D del cofre se vuelven a dibujar en el idioma nuevo
+}));
 $('bStart').onclick = () => { audioInit(); sfx('coin'); flash('white'); show('perm'); };
 $('bCam').onclick = async () => {
   audioInit(); sfx('click');
@@ -762,7 +771,7 @@ if (location.search.includes('debug')) window.__fl = { S, enter, ctx, camera, ro
 function applyQuality(q) {
   S.quality = q; setQuality(q);
   renderer.setPixelRatio(Math.min(devicePixelRatio, [1, 1.5, 2][q])); renderer.shadowMap.enabled = q > 0; resize();
-  document.querySelectorAll('.qbtn').forEach(b => b.classList.toggle('on', +b.dataset.q === q));
+  document.querySelectorAll('.qbtn[data-q]').forEach(b => b.classList.toggle('on', +b.dataset.q === q));
 }
-document.querySelectorAll('.qbtn').forEach(b => (b.onclick = () => { applyQuality(+b.dataset.q); toast(['Calidad baja: más fluido', 'Calidad media', 'Calidad alta: más detalle'][+b.dataset.q], 1600); }));
+document.querySelectorAll('.qbtn[data-q]').forEach(b => (b.onclick = () => { applyQuality(+b.dataset.q); toast(['Calidad baja: más fluido', 'Calidad media', 'Calidad alta: más detalle'][+b.dataset.q], 1600); }));
 applyQuality(S.quality);

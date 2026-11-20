@@ -8,8 +8,9 @@
 ## Estado actual
 - **Qué es:** juego web de realidad aumentada para una feria universitaria sobre **Carolina del Norte** (antes Florida): un cofre abre 7 minijuegos arcade y cada uno da 1 estrella.
 - **Fase:** cambio de estado terminado (2026-11-20). Misma mecánica de la versión de Florida (1.4.3, con el arreglo de `ctx.pop`), con mundos, textos, colores y datos de Carolina del Norte.
-- **Los 7 juegos:** ✨ Blue Ridge · Luces de Brown Mountain (duelo por gestos) · 🤖 Research Triangle · drones (oleadas y jefe) · 🏙️ Charlotte (5 íconos en 60 s) · 🚤 Outer Banks (tour en lancha, 5 paradas) · 🏀 Charlotte Hornets · 🏈 Carolina Panthers (gol de campo) · ⚽ Charlotte FC (penales).
-- **Claves internas sin cambiar** (para no romper `xr.js`, récords ni el modo pies): `orlando` = Blue Ridge, `heroes` = Research Triangle, `city` = Charlotte, `miami` = Outer Banks, `heat` = Hornets, `fg` = Panthers, `penalty` = Charlotte FC.
+- **Idioma:** inglés al abrir (siempre), español opcional con el selector de la intro o en ⚙️ (`i18n.js`).
+- **Los 7 juegos:** ✈️ Kitty Hawk · Primer vuelo de los hermanos Wright (reemplazó al duelo de magos; solo celular, no está en el menú del Quest) · 🤖 Research Triangle · drones (oleadas y jefe) · 🏙️ Charlotte (5 íconos en 60 s) · 🚤 Outer Banks (tour en lancha, 5 paradas) · 🏀 Charlotte Hornets · 🏈 Carolina Panthers (gol de campo) · ⚽ Charlotte FC (penales).
+- **Claves internas sin cambiar** (para no romper `xr.js`, récords ni el modo pies): `orlando` = Kitty Hawk (primer vuelo), `heroes` = Research Triangle, `city` = Charlotte, `miami` = Outer Banks, `heat` = Hornets, `fg` = Panthers, `penalty` = Charlotte FC.
 - **Verificado:** sintaxis de todos los .js; en Chrome automático (iPhone emulado, SwiftShader) los 7 juegos cargan sin errores, con sus tarjetas, y se revisaron capturas de los faros, el monumento Wright, el barco pirata, las postales y Uptown Charlotte.
 - **Sin probar:** iPhone real, Quest real, mano y pie (MediaPipe no carga en el entorno de prueba).
 - **Siguiente paso:** probar en el celular el tour (2 minutos, 5 preguntas) y los demás juegos.
@@ -36,7 +37,7 @@
 | Modo depuración | añadir `?debug` a la URL (expone `window.__fl`) |
 
 - **Entorno:** navegador móvil con HTTPS (cámara, giroscopio y Wake Lock). No hay dependencias que instalar.
-- **Despliegue:** GitHub Pages desde `cielocaicon-ship-it/florida-ar` (rama main) → https://cielocaicon-ship-it.github.io/florida-ar/ (ahora con la versión de Carolina del Norte). La versión de Florida sigue en `colmenaressan27/florida-ar`.
+- **Despliegue:** GitHub Pages desde `cielocaicon-ship-it/florida-ar` (rama main) → https://cielocaicon-ship-it.github.io/florida-ar/. La versión de Florida sigue en `colmenaressan27/florida-ar`.
 
 ## 3. Mapa del código
 <!-- Solo lo que no es obvio: dónde vive cada pieza importante y cómo se conectan. -->
@@ -126,6 +127,11 @@ JUEGO.md            biblia del juego: arte, game feel, decisiones de diseño
 
 ## 8. Bitácora
 <!-- Entradas nuevas ARRIBA. Aquí se conservan las últimas 8; las anteriores se archivan solas en .hilo/historial.md -->
+### 2026-11-20 · v2.1.0 · Claude (chat)
+- Se quitó el duelo de magos (Blue Ridge): la clave `orlando` ahora es «Kitty Hawk — El primer vuelo» (`firstFlight` en `scenes2.js`, ajustes en `FLY`): pilotas el Wright Flyer por 10 aros. Se quitó la leyenda de hechizos de `index.html`; en el Quest el menú tiene 3 mundos.
+- Tour Outer Banks mejorado: guía que anuncia cada lugar (`GUIDE`), el bote va más lento cerca de los lugares famosos, menos boyas (ninguna cerca de las paradas) y medalla al final (preguntas, fotos y corazones).
+- Idiomas: nuevo `i18n.js` con el diccionario español → inglés (`EN`). Traduce tarjetas, avisos, pistas, letreros 3D (canvas) y la página; empieza siempre en inglés; selector 🇺🇸/🇪🇸 en la intro y en ⚙️.
+- Verificado en Chrome automático: carga en inglés sin textos en español pendientes en los juegos recorridos; el cambio a español funciona.
 ### 2026-11-20 · v2.0.0 · Claude (chat)
 - Cambio de estado a Carolina del Norte sobre la versión 1.4.3 (zip de Cielo). Intro «Welcome to North Carolina!», final, menú del cofre (Aventura · Viaje · Deportes), menú Quest, sensor de pies y textos de cada juego.
 - `scenes2.js`: tour Outer Banks (`waterTour`, END 1250, 5 paradas con preguntas, caballos, pelícanos, faros, monumento Wright con Wright Flyer volando, Jockey's Ridge con alas delta, barco pirata, casas sobre pilotes, `POSTALES`); Uptown Charlotte (`city`: parque, rascacielos, torre con corona, tren ligero, Salón de la Fama NASCAR; objetos 🏁 🍩 🥤 🏀 👑); Research Triangle (`heroes`: laboratorios de vidrio, pinos, armas renombradas); Panthers y Charlotte FC (colores y textos).

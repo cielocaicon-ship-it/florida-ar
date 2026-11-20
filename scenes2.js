@@ -1054,13 +1054,27 @@ function waterTour(ctx, opt) {
   const jr = []; for (const [dx, dz, r] of [[0, 0, 26], [-26, 8, 18], [24, 10, 16]]) { const d = add(g, sph(r, 18), M(0xf0d9a8, { roughness: 1 }), 665 + dx, -r * 0.35, 44 + dz, false); d.scale.y = 0.75; jr.push(d); } // dunas de Jockey's Ridge
   const jlb = label("Jockey's Ridge · duna gigante", 4, '#ffffff', 'rgba(10,40,70,.85)'); jlb.position.set(665, 24, 44); g.add(jlb);
   const gliders = [0, 1, 2].map(k => { const G3 = new THREE.Group(); g.add(G3); const w = add(G3, new THREE.ConeGeometry(3.2, 0.2, 3), M([0xff4fa3, 0xffd23a, 0x24d1ff][k], { side: THREE.DoubleSide }), 0, 0, 0, false); w.scale.set(1, 1, 0.5); const pp = person({ h: 1.7, top: 0x333333, bottom: 0x333333 }); pp.p.rotation.z = Math.PI / 2; pp.p.position.y = -1.2; pp.p.scale.setScalar(0.8); G3.add(pp.p); G3.userData.ph = k * 2.1; return G3; });
+  // 🗣️ guía del tour: anuncia cada lugar cuando te acercas (y el bote va más despacio para que lo veas)
+  const GUIDE = [
+    { x: 205, t: '👉 A tu derecha: el Faro de Currituck, de ladrillo rojo sin pintar (1875).' },
+    { x: 330, t: '🐴 Mira la playa: los caballos salvajes de Corolla viven libres en las dunas.' },
+    { x: 440, t: '👉 A tu derecha: el monumento a los hermanos Wright, sobre la duna Kill Devil Hill. ✈️ ¡Mira el avión de 1903 volando!' },
+    { x: 665, t: '👉 A tu derecha: Jockey\'s Ridge, la duna viva más alta de la costa atlántica. Mira las alas delta.' },
+    { x: 840, t: '👉 A tu derecha: el Faro de Bodie Island, con franjas blancas y negras.' },
+    { x: 900, t: '👉 A tu derecha: el Faro del Cabo Hatteras, el faro de ladrillo más alto de Estados Unidos.' },
+    { x: 1080, t: '🏴‍☠️ A tu izquierda, en el mar: un barco pirata como el de Barba Negra, que navegó por estas aguas.' },
+    { x: 1130, t: '👉 A tu derecha: el Faro de Ocracoke (1823), uno de los más antiguos que siguen funcionando.' }
+  ].concat(POSTALES.map((P2, i) => ({ x: 110 + i * 112, t: `📮 Postal: ${P2[1]} — ${P2[2]}` }))).sort((a, b) => a.x - b.x);
+  GUIDE.forEach(G4 => (G4.done = false));
+  const slowAt = [205, 440, 665, 840, 900, 1080, 1130];
   const ship = pirateShip(); ship.position.set(1080, -0.6, -40); ship.rotation.y = -0.3; g.add(ship);
   const traffic = [[0xd4202a, 0, 13.6, 7], [0x24d1ff, 40, 13.6, 7], [0xffe14d, 20, 17.4, -6], [0x2a2f3e, 70, 17.4, -6]].map(a => car(g, ...a));
-  // estrellas para recoger y boyas para esquivar, en filas
+  // estrellas para recoger y boyas para esquivar, en filas (no hay boyas cerca de las paradas)
+  const STOPS_X = [230, 470, 700, 930, 1160];
   const items = [], starGeoG = starMesh;
   for (let x = 40; x < END - 20; x += 16) {
     const free = [0, 1, 2].sort(() => Math.random() - 0.5);
-    if (Math.random() < 0.55) { const L = free.pop(), b = new THREE.Group(); b.position.set(x, -0.3, LANES[L]); g.add(b); const c = L % 2 ? 0xd4202a : 0x1f9a3a;
+    if (Math.random() < 0.35 && (x < 140 || STOPS_X.every(sx => Math.abs(sx - x) > 30))) { const L = free.pop(), b = new THREE.Group(); b.position.set(x, -0.3, LANES[L]); g.add(b); const c = L % 2 ? 0xd4202a : 0x1f9a3a;
       add(b, cyl(0.5, 0.65, 1.6, 14), M(c, { roughness: 0.5 }), 0, 0.5, 0); add(b, cone(0.5, 0.6, 14), M(c), 0, 1.6, 0); add(b, box(1, 0.1, 1), M(0xffffff), 0, 0.9, 0, false);
       items.push({ o: b, x, L, type: 'buoy', ph: rnd(0, 6) }); }
     const L = free.pop(), st = starGeoG(); st.scale.setScalar(1.7); st.position.set(x, 1.3, LANES[L]); g.add(st); items.push({ o: st, x, L, type: 'star' });
@@ -1080,7 +1094,7 @@ function waterTour(ctx, opt) {
   // vehículo del jugador
   const VEH = { boat: { g: boatModel(), eye: 2.35, cam: 0.6 }, jet: { g: jetModel(), eye: 1.75, cam: -0.45 } };
   VEH.boat.g.visible = VEH.jet.g.visible = false; g.add(VEH.boat.g, VEH.jet.g);
-  let veh = null, running = false, alive = true, x = 0, lane = 1, z = LANES[1], hearts = 3, stars = 0, photos = new Set(), inv = 0, stopI = 0, phase = 'drive', infoT = 0, eng = null, waveT = 0;
+  let right = 0, veh = null, running = false, alive = true, x = 0, lane = 1, z = LANES[1], hearts = 3, stars = 0, photos = new Set(), inv = 0, stopI = 0, phase = 'drive', infoT = 0, eng = null, waveT = 0;
   const FACT = { '🐢': 'Tortuga boba (caguama): cada verano pone sus huevos en las playas de los Outer Banks.', '🐬': 'Delfín nariz de botella: se ve con frecuencia frente a la costa de Carolina del Norte.', '🐴': 'Caballo salvaje de Corolla: desciende de caballos españoles traídos en los años 1500.', '🐦': 'Pelícano pardo: pesca lanzándose en picada al mar.' };
   const info = () => ctx.info(`${'❤️'.repeat(hearts)}${'🖤'.repeat(3 - hearts)} · ⭐ ${stars} · 📸 ${photos.size}/4 · 🏁 ${Math.min(100, Math.round(x / END * 100))}%`);
   const bar = document.createElement('div'); bar.id = 'pickbar'; bar.className = 'hidden'; document.getElementById('app').appendChild(bar);
@@ -1108,7 +1122,7 @@ function waterTour(ctx, opt) {
   function ask() {
     const S2 = STOPS[stopI]; phase = 'quiz'; if (eng) eng.gn.gain.value = 0.008;
     ctx.card(`❓ Parada ${stopI + 1} de ${STOPS.length} · ${S2.name}`, `<p>${S2.q}</p>`, S2.o.map((o, i) => ({ label: o, fn: () => {
-      if (i === S2.a) { stars += 3; ctx.sfx('pickup'); ctx.toast('✅ ¡Correcto! +3 ⭐', 2200); } else { ctx.sfx('hurt'); ctx.toast(`❌ Era: ${S2.o[S2.a]}`, 2600); }
+      if (i === S2.a) { stars += 3; right++; ctx.sfx('pickup'); ctx.toast('✅ ¡Correcto! +3 ⭐', 2200); } else { ctx.sfx('hurt'); ctx.toast(`❌ Era: ${S2.o[S2.a]}`, 2600); }
       stopI++; phase = 'drive'; info(); if (eng) eng.gn.gain.value = 0.03;
     } })));
   }
@@ -1183,11 +1197,14 @@ function waterTour(ctx, opt) {
       mixers.forEach(m => m.update(dt)); ocean.userData.uT.value = t;
       if (intro.on) { intro.update(dt); if (!intro.on) this.camLock = false; }
       if (running && phase === 'drive') {
-        x += SPEED[veh] * (opt.xr ? XW.SPEED : 1) * dt; inv = Math.max(0, inv - dt);
+        const slow = slowAt.some(sx => Math.abs(sx - x) < 35) ? 0.6 : 1;
+        x += SPEED[veh] * slow * (opt.xr ? XW.SPEED : 1) * dt; inv = Math.max(0, inv - dt);
+        for (const G4 of GUIDE) if (!G4.done && x >= G4.x - 30) { G4.done = true; ctx.toast(G4.t, 4500); ctx.sfx('click'); }
         if (stopI < STOPS.length && x >= STOPS[stopI].x) { x = STOPS[stopI].x; ask(); }
         if (x >= END) { x = END; running = false; bar.classList.add('hidden'); if (eng) eng.gn.gain.value = 0.0001;
           for (let k = 0; k < 6; k++) setTimeout(() => ctx.burst(_v.set(END + rnd(-5, 15), rnd(8, 14), rnd(-25, -10)), [0xff4fa3, 0xffd23a, 0x24d1ff, 0xffffff], 60, 4), k * 250);
-          ctx.sfx('crowd'); setTimeout(() => ctx.win('miami'), 1500); }
+          ctx.sfx('crowd'); const pts = right * 2 + photos.size + hearts, medal = pts >= 13 ? 'oro' : pts >= 9 ? 'plata' : 'bronce';
+          setTimeout(() => ctx.win('miami', { medal, line: `✅ ${right}/5 preguntas · 📸 ${photos.size}/4 fotos · ⭐ ${stars}` }), 1500); }
       }
       z = lerp(z, LANES[lane], Math.min(1, dt * (opt.xr ? XW.LANE_K : 6)));
       if (!intro.on && !opt.xr) camera.position.copy(seatPos());
@@ -1225,8 +1242,113 @@ function waterTour(ctx, opt) {
   };
 }
 
+/* ================= KITTY HAWK — EL PRIMER VUELO (clave interna 'orlando'; reemplaza al duelo de magos) =================
+   Pilotas una réplica del Wright Flyer de 1903 sobre las dunas de Kill Devil Hills. Avanza solo; tú lo subes, bajas y mueves a los lados.
+   FLY: ajustes · SPEED: velocidad (m/s) · RINGS: cuántos aros · GAP: distancia entre aros (m) · NEED: aros para ganar la estrella · R: radio del aro (m) · HEARTS: choques permitidos */
+const FLY = { SPEED: 12, RINGS: 10, GAP: 42, NEED: 6, R: 3.2, HEARTS: 3, YMIN: 2, YMAX: 15, ZMAX: 9 };
+function firstFlight(ctx, opt) {
+  const { camera, scene } = ctx, g = new THREE.Group(); ctx.root.add(g);
+  const skyM = sky(0x3a7fd6, 0xd9ecff, 0xe9dcc0); g.add(skyM);
+  const restoreEnv = envFromSky(ctx, skyM);
+  scene.fog = new THREE.Fog(0xdbe9f7, 120, 520);
+  const sun = lightRig(g, { sky: 0xd9ecff, ground: 0xe8d3a0, hemi: 1.0, sun: 0xfff2dc, sunI: 2.6, dir: [-20, 30, 14], size: 40, target: [0, 0, 0] });
+  const END = 60 + FLY.RINGS * FLY.GAP + 60;
+  // arena, dunas, mar (a la izquierda) y pastos
+  const sandT = rep(canvasTex(256, 256, (c, w, h) => { c.fillStyle = '#e6d09c'; c.fillRect(0, 0, w, h); for (let i = 0; i < 9000; i++) { c.fillStyle = Math.random() < 0.5 ? 'rgba(170,140,90,.25)' : 'rgba(255,250,235,.35)'; c.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5); } }), 120, 60);
+  const ground = add(g, new THREE.PlaneGeometry(1400, 700), temp(new THREE.MeshStandardMaterial({ map: sandT, roughness: 1 })), END / 2, 0, 150, false); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+  const ocean = waterMat(0x2a8fb8, { amp: 0.4 });
+  const oc = add(g, new THREE.PlaneGeometry(1400, 400, 200, 40), ocean, END / 2, -0.3, -230, false); oc.rotation.x = -Math.PI / 2;
+  const duneM = M(0xe9d3a2, { roughness: 1 }), grassM = M(0x8a9a4a, { roughness: 1 });
+  for (let i = 0; i < 60; i++) { const x = rnd(-80, END + 60), z = pick([rnd(16, 120), rnd(-28, -15)]), r = rnd(6, 16); const d = add(g, sph(r, 12), duneM, x, -r * 0.55, z, false); d.scale.y = 0.6; for (let q = 0; q < 4; q++) add(g, cone(0.3, 1, 4), grassM, x + rnd(-r, r) * 0.6, 0.4, z + rnd(-r, r) * 0.6, false); }
+  // Kill Devil Hill con el monumento a los hermanos Wright (a tu derecha)
+  const hill = add(g, sph(40, 24), duneM, 160, -14, 75, false); hill.scale.y = 0.75;
+  const mon = new THREE.Group(); mon.position.set(160, 15, 75); g.add(mon);
+  add(mon, box(5, 20, 3), M(0xd8d4cc, { roughness: 0.6 }), 0, 10, 0); add(mon, cone(3, 3.5, 4), M(0xd8d4cc), 0, 21.7, 0).rotation.y = Math.PI / 4;
+  for (const s of [-1, 1]) add(mon, box(1.3, 3.5, 3.8), M(0xcfcac0), s * 2.8, 10, 0);
+  // campamento de 1903: hangar de madera y casa, riel de despegue y testigos
+  const wood = M(0x8a6a48, { roughness: 0.9 }), dark = M(0x5a4030, { roughness: 0.9 });
+  add(g, box(7, 3.2, 5), wood, -14, 1.6, 12); add(g, box(7.4, 0.3, 5.6), dark, -14, 3.35, 12);
+  add(g, box(5, 2.8, 4), wood, -24, 1.4, 14); add(g, box(5.4, 0.3, 4.6), dark, -24, 2.95, 14);
+  add(g, box(18, 0.1, 0.25), M(0x6a4a2a), -9, 0.05, 0, false); // riel de madera donde despegaron
+  for (const [x, z, ry] of [[-6, 5, -2.2], [-4, 6, -2], [-8, 6.5, -2.5], [-2, 5.5, -1.8], [-10, 4.5, -2.6]]) { const P = person({ h: rnd(1.65, 1.85), top: pick([0x2a2a2a, 0x3a3a4a, 0x4a3a2a]), bottom: 0x2a2a2a, sleeves: true, hairStyle: 'short' }); P.p.position.set(x, 0, z); P.p.rotation.y = ry; g.add(P.p); }
+  const lb = label('Kill Devil Hills · 17 de diciembre de 1903', 1.4, '#ffffff', 'rgba(10,40,70,.85)'); lb.position.set(-14, 5.5, 12); g.add(lb);
+  // aros de vuelo (banderines) y meta de aterrizaje
+  const rings = []; const ringM = [M(0xffd23a, { emissive: 0x664400, roughness: 0.4 }), M(0xff4fa3, { emissive: 0x550022, roughness: 0.4 })];
+  for (let i = 0; i < FLY.RINGS; i++) {
+    const x = 60 + i * FLY.GAP, y = i === 0 ? 4 : rnd(3.5, 12), z = i === 0 ? 0 : rnd(-7, 7);
+    const r = new THREE.Group(); r.position.set(x, y, z); g.add(r);
+    const t = add(r, new THREE.TorusGeometry(FLY.R, 0.22, 10, 40), ringM[i % 2], 0, 0, 0, false); t.rotation.y = Math.PI / 2;
+    r.add(glow(i % 2 ? 0xff4fa3 : 0xffd23a, FLY.R * 3, 0.35));
+    add(g, cyl(0.08, 0.08, y - FLY.R, 6), M(0xffffff), x, (y - FLY.R) / 2, z, false); // palo que sostiene el aro
+    rings.push({ r, x, y, z, done: false, ok: false });
+  }
+  const pad = add(g, new THREE.RingGeometry(3, 4.2, 40), temp(new THREE.MeshBasicMaterial({ color: 0x3ddc84, transparent: true, opacity: 0.8 })), END - 30, 0.05, 0, false); pad.rotation.x = -Math.PI / 2;
+  const padL = label('🛬 Aterriza aquí', 0.9, '#ffffff', 'rgba(20,90,50,.85)'); padL.position.set(END - 30, 3, 0); g.add(padL);
+  // el avión
+  const plane = wrightFlyer(); plane.scale.setScalar(0.55); plane.position.set(-12, 0.6, 0); g.add(plane);
+  let running = false, phase = 'intro', x = -12, y = 0.6, z = 0, ty = 4, tz = 0, vy = 0, vz = 0, hearts = FLY.HEARTS, passed = 0, inv = 0, introT = 0, gust = 0, gustT = 6, ended = false, infoT = 0;
+  const keys = { up: 0, down: 0, left: 0, right: 0 };
+  const info = () => ctx.info(`${'❤️'.repeat(hearts)}${'🖤'.repeat(FLY.HEARTS - hearts)} · 🎯 ${passed}/${FLY.RINGS} · 🏁 ${Math.max(0, Math.min(100, Math.round((x + 12) / (END - 18) * 100)))}%`);
+  const refreshHint = () => ctx.hint(ctx.isHand() ? '☝️ Mueve tu índice: arriba sube, abajo baja, a los lados gira · pasa por los aros' : '👆 Arrastra el dedo: arriba sube, abajo baja, a los lados gira · pasa por los aros');
+  const aim = p => { ty = FLY.YMIN + (clamp(p.ndc.y, -1, 1) + 1) / 2 * (FLY.YMAX - FLY.YMIN); tz = clamp(p.ndc.x, -1, 1) * FLY.ZMAX; };
+  const KD = e => { const k = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' }[e.code]; if (k) keys[k] = e.type === 'keydown' ? 1 : 0; };
+  addEventListener('keydown', KD); addEventListener('keyup', KD);
+  function finishIntro() { if (phase !== 'intro') return; phase = 'ready'; if (!opt.quick) ctx.ready(); }
+  function end() {
+    if (ended) return; ended = true; running = false;
+    if (passed >= FLY.NEED) {
+      const medal = passed >= FLY.RINGS ? 'oro' : passed >= FLY.RINGS - 2 ? 'plata' : 'bronce', b = ctx.best('orlando', passed);
+      ctx.sfx('crowd'); setTimeout(() => ctx.win('orlando', { medal, line: `🎯 ${passed} de ${FLY.RINGS} aros · ${'❤️'.repeat(hearts)}`, record: b.isNew ? '¡NUEVO RÉCORD!' : `RÉCORD: ${b.best} aros` }), 900);
+    } else setTimeout(() => ctx.lose(`Pasaste ${passed} de ${FLY.RINGS} aros y necesitas ${FLY.NEED}. Consejo: mira el siguiente aro y mueve el dedo con calma hacia él.`), 700);
+  }
+  const _c = new V3(), _t = new V3();
+  return {
+    camLock: true, look: false, dwellTime: 0.6, refreshHint,
+    start() { running = true; phase = 'fly'; ty = 4; inv = 2.5; info(); refreshHint(); ctx.sfx('portal'); ctx.toast('🛫 ¡Despegue! Como Orville Wright en 1903', 2500); },
+    onDown(p) { if (phase === 'intro') { finishIntro(); return; } if (running) aim(p); },
+    onMove(p) { if (running && (p.down || p.src === 'hand')) aim(p); },
+    onUp() {},
+    tap() { if (phase === 'intro') finishIntro(); },
+    update(dt, t) {
+      ocean.userData.uT.value = t;
+      plane.userData.props.forEach(pr => (pr.rotation.x += dt * (running ? 30 : 6)));
+      if (phase === 'intro') { introT += dt; const a = -0.6 + introT * 0.35; camera.position.set(-12 + Math.cos(a) * 9, 3 + introT * 0.2, Math.sin(a) * 9); camera.lookAt(-12, 1.2, 0); if (introT > 5) finishIntro(); return; }
+      if (running) {
+        if (keys.up || keys.down) ty = clamp(ty + (keys.up - keys.down) * dt * 8, FLY.YMIN, FLY.YMAX);
+        if (keys.left || keys.right) tz = clamp(tz + (keys.right - keys.left) * dt * 8, -FLY.ZMAX, FLY.ZMAX);
+        gustT -= dt; if (gustT <= 0) { gust = pick([-1, 1]) * rnd(2, 3.5); gustT = rnd(6, 9); ctx.toast(gust > 0 ? '💨 ¡Ráfaga de viento hacia la derecha!' : '💨 ¡Ráfaga de viento hacia la izquierda!', 1500); }
+        gust *= Math.pow(0.4, dt);
+        x += FLY.SPEED * dt;
+        const ny = y + clamp(ty - y, -6, 6) * dt * 1.6, nz = z + (clamp(tz - z, -8, 8) * 1.4 + gust) * dt;
+        vy = (ny - y) / dt; vz = (nz - z) / dt; y = ny; z = nz;
+        inv = Math.max(0, inv - dt);
+        if (y < 1.1 && !inv) { inv = 1.5; hearts--; y = 3; ty = 5; ctx.sfx('hurt'); ctx.flash(); ctx.shake && ctx.shake(0.3); if (navigator.vibrate) navigator.vibrate(80); ctx.toast('💥 ¡Tocaste la arena! Sube un poco', 1600); info(); if (hearts <= 0) { running = false; setTimeout(() => ctx.lose('El avión tocó la arena 3 veces. Mantente un poco más alto y baja solo para pasar por los aros.'), 600); } }
+        for (const R of rings) if (!R.done && x >= R.x) {
+          R.done = true; const d = Math.hypot(y - R.y, z - R.z);
+          if (d < FLY.R) { R.ok = true; passed++; ctx.sfx('pickup'); ctx.burst(R.r.position, [0xffd23a, 0xffffff, 0xff4fa3], 50, 2.5); ctx.pop && ctx.pop(d < FLY.R * 0.4 ? '¡PERFECTO!' : '¡BIEN!', 'small'); R.r.visible = false; }
+          else { ctx.sfx('block'); R.r.children[0].material = M(0x777777); }
+          info();
+        }
+        const nxt = rings.find(R => !R.done); if (nxt) { const s = 1 + Math.sin(t * 6) * 0.06; nxt.r.scale.setScalar(s); }
+        if (x >= END - 30) { running = false; phase = 'land'; }
+        infoT += dt; if (infoT > 0.3) { infoT = 0; info(); }
+      } else if (phase === 'land') { x += FLY.SPEED * 0.5 * dt; y += (0.6 - y) * dt * 1.5; z += (0 - z) * dt * 1.5; if (y < 0.7) { phase = 'done'; ctx.burst(_t.set(x, 0.5, z), [0xe6d09c, 0xffffff], 40, 2); end(); } }
+      plane.position.set(x, y, z); plane.rotation.set(clamp(-vz * 0.06, -0.6, 0.6), 0, clamp(vy * 0.04, -0.35, 0.35));
+      _c.set(x - 13, y + 3.4, z * 0.8); camera.position.lerp(_c, Math.min(1, dt * 4)); camera.lookAt(_t.set(x + 20, y - 0.4, z));
+      skyM.position.x = x; sun.position.set(x - 20, 30, 14); sun.target.position.set(x + 10, 0, 0);
+    },
+    dispose() { running = false; restoreEnv(); removeEventListener('keydown', KD); removeEventListener('keyup', KD); }
+  };
+}
+
 /* ---------- iconos de portal y catálogo ---------- */
 export const GAMES2 = {
+  orlando: {
+    short: 'Primer vuelo', title: '✈️ Kitty Hawk — El primer vuelo', pix: 'PRIMER VUELO', tag: 'HERMANOS WRIGHT · 1903', countdown: true, winMsg: '¡Volaste como los hermanos Wright!', create: firstFlight,
+    icon() { const i = new THREE.Group(); const f = wrightFlyer(); f.scale.setScalar(0.028); i.add(f); return i; },
+    how: h => 'Pilotas una réplica del <b>Wright Flyer</b>, el avión con el que Orville y Wilbur Wright hicieron el primer vuelo con motor de la historia, en las dunas de Kill Devil Hills. El avión avanza solo: ' + (h ? 'mueve tu <b>índice</b> hacia arriba para subir, hacia abajo para bajar y a los lados para girar' : '<b>arrastra el dedo</b> hacia arriba para subir, hacia abajo para bajar y a los lados para girar') + '.<br>🎯 Pasa por dentro de los <b>10 aros</b> · 💨 cuidado con las ráfagas de viento · no toques la arena (tienes 3 ❤️).<br><b>Pasa al menos 6 aros</b> y aterriza en el círculo verde.',
+    fact: 'El 17 de diciembre de 1903, Orville Wright voló 12 segundos y unos 36 metros en Kill Devil Hills, cerca de Kitty Hawk: el primer vuelo con motor de la historia. Ese día hicieron 4 vuelos; el más largo, de Wilbur, duró 59 segundos.'
+  },
   miami: {
     short: 'Outer Banks', title: '🚤 Outer Banks — Tour en lancha', pix: 'OUTER BANKS', tag: 'COSTA · FAROS · 5 PARADAS', winMsg: '¡Completaste el tour por los Outer Banks!', create: waterTour,
     how: h => 'Recorres en lancha los <b>Outer Banks</b>, las islas de la costa de Carolina del Norte. <b>A tu derecha</b> verás la playa, las casas sobre pilotes, los <b>caballos salvajes</b>, el monumento a los <b>hermanos Wright</b>, las dunas de Jockey\'s Ridge, los faros de <b>Currituck, Bodie Island, Cabo Hatteras y Ocracoke</b>, y vallas con lo más famoso del resto del estado. A tu izquierda, en el mar, aparece el barco de <b>Barba Negra</b> 🏴‍☠️.<br>🚤 El vehículo avanza solo. Tú solo eliges el <b>carril</b>: ' + (h ? 'mueve tu índice a la izquierda, al centro o a la derecha' : 'botones <b>◀ ▶</b> o desliza el dedo') + '.<br>⭐ Recoge estrellas · 🔴🟢 esquiva las boyas (tienes 3 ❤️) · 📸 toca los animales para fotografiarlos (🐴 🐬 🐢 🐦).<br>❓ En 5 paradas respondes una pregunta sobre Carolina del Norte. ¡Llega a Ocracoke!',

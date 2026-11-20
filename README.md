@@ -4,7 +4,7 @@ Juego web de realidad aumentada sobre **Carolina del Norte** para la feria: un c
 
 | Juego | Qué es |
 |---|---|
-| ✨ Blue Ridge | Duelo por gestos contra el guardián de las luces de Brown Mountain |
+| ✈️ Kitty Hawk | Pilota el avión de los hermanos Wright por 10 aros |
 | 🤖 Research Triangle | Drones de un laboratorio fuera de control: oleadas y jefe |
 | 🏙️ Charlotte | Encuentra 5 íconos del estado en Uptown en 60 s |
 | 🚤 Outer Banks | Tour en lancha: faros, caballos salvajes, hermanos Wright, Barba Negra, postales del estado y 5 preguntas |
@@ -12,7 +12,9 @@ Juego web de realidad aumentada sobre **Carolina del Norte** para la feria: un c
 | 🏈 Carolina Panthers | Gol de campo con el pie |
 | ⚽ Charlotte FC | Penales con el pie |
 
-Las claves internas de los juegos no cambiaron desde la versión de Florida: `orlando` = Blue Ridge, `heroes` = Research Triangle, `city` = Charlotte, `miami` = Outer Banks, `heat` = Hornets, `fg` = Panthers, `penalty` = Charlotte FC. Logos de equipos: no se usan (solo nombres y colores).
+Las claves internas de los juegos no cambiaron desde la versión de Florida: `orlando` = Kitty Hawk, `heroes` = Research Triangle, `city` = Charlotte, `miami` = Outer Banks, `heat` = Hornets, `fg` = Panthers, `penalty` = Charlotte FC. Logos de equipos: no se usan (solo nombres y colores).
+
+**Idioma:** el juego abre siempre en inglés; el botón 🇪🇸 Español (en la intro o en ⚙️) lo cambia. Las traducciones están en `i18n.js`: busca el texto en español y cambia el inglés que tiene al lado.
 
 ## Créditos de modelos 3D (carpeta `assets/`)
 
