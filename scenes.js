@@ -390,7 +390,7 @@ export function createHub(ctx, opt = {}) {
   const coins = [];
 
   // Portales
-  const DEST = [['orlando', -0.78, 1.95, 0x9b5cff], ['heroes', -0.78, 1.2, 0xe23b3b], ['city', 0, 1.95, 0xff4fa3], ['miami', 0, 1.2, 0x24d1ff],
+  const DEST = [['orlando', -0.78, 1.6, 0x9b5cff], ['city', 0, 1.95, 0xff4fa3], ['miami', 0, 1.2, 0x24d1ff],
     ['heat', 0.78, 2.3, 0xff3b30], ['fg', 0.78, 1.6, 0xb8742a], ['penalty', 0.78, 0.9, 0x2c9a4a]];
   const cats = [['AVENTURA', -0.78, 2.45], ['VIAJE', 0, 2.45], ['DEPORTES', 0.78, 2.8]].map(([t, x, y]) => { const l = label(t, 0.11, '#ffd54a', 'rgba(40,10,60,.85)'); l.position.set(x, y, 0); l.visible = false; g.add(l); return l; });
   const portals = DEST.map(([key, x, y, col]) => {

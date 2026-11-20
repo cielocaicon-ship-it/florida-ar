@@ -11,8 +11,8 @@ import { initXR, QUEST } from './xr.js';
 preloadModels(); // tus modelos 3D (assets/modelos) se cargan desde el inicio, mientras la persona lee la bienvenida
 const GAMES = { ...G1, ...GAMES2 };
 startLang(); // la página arranca en inglés
-// claves internas heredadas de la versión de Florida: orlando = Kitty Hawk (primer vuelo) · heroes = Research Triangle · city = Charlotte · miami = Outer Banks · heat = Hornets · fg = Panthers · penalty = Charlotte FC
-const ORDER = [['orlando', '✈️'], ['heroes', '🤖'], ['city', '🏙️'], ['miami', '🚤'], ['heat', '🏀'], ['fg', '🏈'], ['penalty', '⚽']];
+// claves internas heredadas de la versión de Florida: orlando = Kitty Hawk (primer vuelo) · city = Charlotte · miami = Outer Banks · heat = Hornets · fg = Panthers · penalty = Charlotte FC
+const ORDER = [['orlando', '✈️'], ['city', '🏙️'], ['miami', '🚤'], ['heat', '🏀'], ['fg', '🏈'], ['penalty', '⚽']];
 
 const $ = id => document.getElementById(id);
 const video = $('cam');
@@ -336,7 +336,7 @@ function fade(on) { if (inXR()) return XRM.fade(on); $('fade').classList.toggle(
 const NAMES = ORDER;
 function updateStars() { // barra de progreso: ⭐ n/7 y un punto por destino
   const n = ORDER.filter(([k]) => S.stars[k]).length;
-  $('stars').innerHTML = `<span class="prog ${n === 7 ? 'got' : ''}" aria-label="${n} de 7 estrellas">⭐ <b>${n}</b>/7</span>` + ORDER.map(([k, i]) => `<span class="dot ${S.stars[k] ? 'got' : ''}" title="${GAMES[k].short}${S.stars[k] ? ' — completado' : ''}">${i}</span>`).join('');
+  $('stars').innerHTML = `<span class="prog ${n === ORDER.length ? 'got' : ''}" aria-label="${n} de ${ORDER.length} estrellas">⭐ <b>${n}</b>/${ORDER.length}</span>` + ORDER.map(([k, i]) => `<span class="dot ${S.stars[k] ? 'got' : ''}" title="${GAMES[k].short}${S.stars[k] ? ' — completado' : ''}">${i}</span>`).join('');
 }
 function refreshTools() {
   $('bBack').style.visibility = S.key && S.key !== 'hub' ? 'visible' : 'hidden';
@@ -612,7 +612,7 @@ function finale() {
       sparks.emit(camera.localToWorld(new THREE.Vector3(Math.random() * 1.6 - 0.8, Math.random() * 1.2 - 0.3, -2.5)), [0xff4fa3, 0xffd54a, 0x24d1ff, 0x7bff6a, 0xff3b30], 40, 2.2);
       if (++n > 14) clearInterval(iv);
     }, 180);
-    card('¡FELICIDADES!', '<p class="win-t">HAS COMPLETADO TU TOUR POR CAROLINA DEL NORTE</p><div class="bigstar">⭐⭐⭐⭐⭐⭐⭐</div><p>Volaste como los hermanos Wright en Kitty Hawk, salvaste el Research Triangle, exploraste Charlotte, navegaste por los Outer Banks y jugaste con los Hornets, los Panthers y el Charlotte FC.</p>',
+    card('¡FELICIDADES!', '<p class="win-t">HAS COMPLETADO TU TOUR POR CAROLINA DEL NORTE</p><div class="bigstar">⭐⭐⭐⭐⭐⭐</div><p>Volaste como los hermanos Wright en Kitty Hawk, exploraste Charlotte, navegaste por los Outer Banks y jugaste con los Hornets, los Panthers y el Charlotte FC.</p>',
       [{ label: '↻ Volver a jugar', primary: true, fn: replay }], 'win');
   }, 400);
 }

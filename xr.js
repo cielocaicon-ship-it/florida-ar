@@ -28,10 +28,9 @@ const SPORTS = {
   heat: { c: '#ff8a00', full: 'Cancha completa', how: 'Toca el balón con la palma para agarrarlo. Empújalo hacia el piso para driblar: vuelve a tu mano. Para tirar, súbelo sobre tu cabeza y lánzalo cuando la barra esté en VERDE. Tiras desde la bandeja, el doble, el triple y al final puedes hacer una CLAVADA. Mete 5 canastas.' },
   fg: { c: '#3ddc84', full: 'Estadio completo', how: 'El estadio se abre como una ventana. Golpea el balón con la palma hacia los postes: más fuerte llega más lejos y hacia un lado apuntas a ese lado. Ojo: los jugadores cambian los postes de lado.' },
   orlando: { c: '#9b5cff', how: 'El primer vuelo se juega en el celular.' },
-  heroes: { c: '#ff6a1a', how: 'Elige tu poder tocándolo. Apunta con la mano derecha al dron del aro rojo y junta los dedos (pinza) para atacar. Tu mano izquierda lleva un escudo de energía: ponlo frente a las bolas rojas para bloquearlas. ¡También puedes esquivarlas moviéndote!' },
   penalty: { c: '#24d1ff', full: 'Estadio completo', how: 'El estadio se abre como una ventana. Golpea el balón con la palma hacia el arco: si golpeas hacia arriba va alto y hacia un lado apuntas a esa esquina. La esquina dorada vale doble.' }
 };
-const WORLDS = ['heroes', 'city', 'miami']; // 'orlando' (primer vuelo) se juega solo en el celular // fila de mundos en realidad virtual del menú (en este orden)
+const WORLDS = ['city', 'miami']; // 'orlando' (primer vuelo) se juega solo en el celular // fila de mundos en realidad virtual del menú (en este orden)
 
 /* ================= Estilo «arcade tropical» (los mismos colores de CSS/style.css) ================= */
 const C = { ink: '#1a0b2e', violet: '#2a0e4a', pink: '#ff4fa3', orange: '#ff8a00', sun: '#ffd54a', sea: '#24d1ff', ok: '#3ddc84', bad: '#ff4d5e', text2: '#c9d1ff' };
@@ -145,8 +144,8 @@ export function initXR(api) {
       g.font = `58px ${PXF}`; const tg = g.createLinearGradient(46, 50, 46 + 430, 110); tg.addColorStop(0, C.sun); tg.addColorStop(0.5, C.orange); tg.addColorStop(1, C.pink);
       g.fillStyle = '#b8005a'; g.fillText('CAROLINA', 50, 112); g.fillStyle = tg; g.fillText('CAROLINA', 46, 108);
       g.font = `20px ${PXF}`; g.fillStyle = C.sea; g.fillText('MODO QUEST', 50, 148);
-      const sn = starsN(); g.textAlign = 'right'; g.font = `26px ${PXF}`; g.fillStyle = sn === 7 ? C.sun : '#fff';
-      g.fillText(`${sn}/7`, W - 50, 104); g.font = `40px ${EMO}`; g.fillText('⭐', W - 50 - g.measureText(`${sn}/7`).width - 64, 108);
+      const sn = starsN(); g.textAlign = 'right'; g.font = `26px ${PXF}`; g.fillStyle = sn === ORDER.length ? C.sun : '#fff';
+      g.fillText(`${sn}/${ORDER.length}`, W - 50, 104); g.font = `40px ${EMO}`; g.fillText('⭐', W - 50 - g.measureText(`${sn}/${ORDER.length}`).width - 64, 108);
       g.font = `600 22px ${UIF}`; g.fillStyle = C.text2; g.fillText('☝️ Toca con el dedo  ·  🤏 o apunta y junta los dedos', W - 46, 148);
       g.textAlign = 'left'; g.font = `700 24px ${UIF}`;
       g.fillText('DEPORTES · REALIDAD MIXTA', 46, 192); g.fillText('MUNDOS · REALIDAD VIRTUAL', 46, 480);

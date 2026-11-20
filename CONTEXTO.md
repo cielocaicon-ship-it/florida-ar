@@ -6,7 +6,7 @@
 
 <!-- hilo:estado:inicio -->
 ## Estado actual
-- **Qué es:** juego web de realidad aumentada para una feria universitaria sobre **Carolina del Norte** (antes Florida): un cofre abre 7 minijuegos arcade y cada uno da 1 estrella.
+- **Qué es:** juego web de realidad aumentada para una feria universitaria sobre **Carolina del Norte** (antes Florida): un cofre abre 6 minijuegos arcade y cada uno da 1 estrella.
 - **Fase:** cambio de estado terminado (2026-11-20). Misma mecánica de la versión de Florida (1.4.3, con el arreglo de `ctx.pop`), con mundos, textos, colores y datos de Carolina del Norte.
 - **Idioma:** inglés al abrir (siempre), español opcional con el selector de la intro o en ⚙️ (`i18n.js`).
 - **Los 7 juegos:** ✈️ Kitty Hawk · Primer vuelo de los hermanos Wright (reemplazó al duelo de magos; solo celular, no está en el menú del Quest) · 🤖 Research Triangle · drones (oleadas y jefe) · 🏙️ Charlotte (5 íconos en 60 s) · 🚤 Outer Banks (tour en lancha, 5 paradas) · 🏀 Charlotte Hornets · 🏈 Carolina Panthers (gol de campo) · ⚽ Charlotte FC (penales).
@@ -127,6 +127,8 @@ JUEGO.md            biblia del juego: arte, game feel, decisiones de diseño
 
 ## 8. Bitácora
 <!-- Entradas nuevas ARRIBA. Aquí se conservan las últimas 8; las anteriores se archivan solas en .hilo/historial.md -->
+### 2026-11-20 · v2.2.0 · Claude (chat)
+- Se quitó el juego de drones (clave `heroes`, venía de la Isla de Héroes de Orlando): ya no está en `ORDER` (game.js), en el cofre (`DEST` en scenes.js), en `GAMES2` ni en el menú del Quest. Quedan 6 juegos y 6 estrellas; los contadores usan `ORDER.length`.
 ### 2026-11-20 · v2.1.0 · Claude (chat)
 - Se quitó el duelo de magos (Blue Ridge): la clave `orlando` ahora es «Kitty Hawk — El primer vuelo» (`firstFlight` en `scenes2.js`, ajustes en `FLY`): pilotas el Wright Flyer por 10 aros. Se quitó la leyenda de hechizos de `index.html`; en el Quest el menú tiene 3 mundos.
 - Tour Outer Banks mejorado: guía que anuncia cada lugar (`GUIDE`), el bote va más lento cerca de los lugares famosos, menos boyas (ninguna cerca de las paradas) y medalla al final (preguntas, fotos y corazones).
