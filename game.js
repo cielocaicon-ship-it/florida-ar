@@ -12,7 +12,7 @@ preloadModels(); // tus modelos 3D (assets/modelos) se cargan desde el inicio, m
 const GAMES = { ...G1, ...GAMES2 };
 startLang(); // la página arranca en inglés
 // claves internas heredadas de la versión de Florida: orlando = Kitty Hawk (primer vuelo) · city = Charlotte · miami = Outer Banks · heat = Hornets · fg = Panthers · penalty = Charlotte FC
-const ORDER = [['orlando', '✈️'], ['city', '🏙️'], ['miami', '🚤'], ['heat', '🏀'], ['fg', '🏈'], ['penalty', '⚽']];
+const ORDER = [['orlando', '✈️'], ['golf', '⛳'], ['city', '🏙️'], ['miami', '🚤'], ['heat', '🏀'], ['fg', '🏈'], ['penalty', '⚽']];
 
 const $ = id => document.getElementById(id);
 const video = $('cam');
@@ -612,7 +612,7 @@ function finale() {
       sparks.emit(camera.localToWorld(new THREE.Vector3(Math.random() * 1.6 - 0.8, Math.random() * 1.2 - 0.3, -2.5)), [0xff4fa3, 0xffd54a, 0x24d1ff, 0x7bff6a, 0xff3b30], 40, 2.2);
       if (++n > 14) clearInterval(iv);
     }, 180);
-    card('¡FELICIDADES!', '<p class="win-t">HAS COMPLETADO TU TOUR POR CAROLINA DEL NORTE</p><div class="bigstar">⭐⭐⭐⭐⭐⭐</div><p>Volaste como los hermanos Wright en Kitty Hawk, exploraste Charlotte, navegaste por los Outer Banks y jugaste con los Hornets, los Panthers y el Charlotte FC.</p>',
+    card('¡FELICIDADES!', '<p class="win-t">HAS COMPLETADO TU TOUR POR CAROLINA DEL NORTE</p><div class="bigstar">⭐⭐⭐⭐⭐⭐⭐</div><p>Volaste como los hermanos Wright en Kitty Hawk, jugaste golf en Pinehurst, exploraste Charlotte, navegaste por los Outer Banks y jugaste con los Hornets, los Panthers y el Charlotte FC.</p>',
       [{ label: '↻ Volver a jugar', primary: true, fn: replay }], 'win');
   }, 400);
 }

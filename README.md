@@ -1,10 +1,11 @@
 # carolina-ar — Carolina AR Adventure
 
-Juego web de realidad aumentada sobre **Carolina del Norte** para la feria: un cofre mágico abre 6 minijuegos y cada uno da una estrella.
+Juego web de realidad aumentada sobre **Carolina del Norte** para la feria: un cofre mágico abre 7 minijuegos y cada uno da una estrella.
 
 | Juego | Qué es |
 |---|---|
 | ✈️ Kitty Hawk | Pilota el avión de los hermanos Wright por 10 aros |
+| ⛳ Pinehurst | Golf: 5 hoyos en la cuna del golf de EE. UU. |
 | 🏙️ Charlotte | Encuentra 5 íconos del estado en Uptown en 60 s |
 | 🚤 Outer Banks | Tour en lancha: faros, caballos salvajes, hermanos Wright, Barba Negra, postales del estado y 5 preguntas |
 | 🏀 Charlotte Hornets | Baloncesto arcade |

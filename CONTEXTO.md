@@ -6,7 +6,7 @@
 
 <!-- hilo:estado:inicio -->
 ## Estado actual
-- **Qué es:** juego web de realidad aumentada para una feria universitaria sobre **Carolina del Norte** (antes Florida): un cofre abre 6 minijuegos arcade y cada uno da 1 estrella.
+- **Qué es:** juego web de realidad aumentada para una feria universitaria sobre **Carolina del Norte** (antes Florida): un cofre abre 7 minijuegos arcade y cada uno da 1 estrella.
 - **Fase:** cambio de estado terminado (2026-11-20). Misma mecánica de la versión de Florida (1.4.3, con el arreglo de `ctx.pop`), con mundos, textos, colores y datos de Carolina del Norte.
 - **Idioma:** inglés al abrir (siempre), español opcional con el selector de la intro o en ⚙️ (`i18n.js`).
 - **Los 7 juegos:** ✈️ Kitty Hawk · Primer vuelo de los hermanos Wright (reemplazó al duelo de magos; solo celular, no está en el menú del Quest) · 🤖 Research Triangle · drones (oleadas y jefe) · 🏙️ Charlotte (5 íconos en 60 s) · 🚤 Outer Banks (tour en lancha, 5 paradas) · 🏀 Charlotte Hornets · 🏈 Carolina Panthers (gol de campo) · ⚽ Charlotte FC (penales).
@@ -127,6 +127,10 @@ JUEGO.md            biblia del juego: arte, game feel, decisiones de diseño
 
 ## 8. Bitácora
 <!-- Entradas nuevas ARRIBA. Aquí se conservan las últimas 8; las anteriores se archivan solas en .hilo/historial.md -->
+### 2026-11-21 · v2.3.0 · Claude (chat)
+- Nuevo juego ⛳ **Pinehurst — Golf** (clave `golf`, `golf()` en `scenes2.js`, ajustes en `GOLF` y `HOLES`): 5 hoyos; cada golpe = fijar dirección y fijar fuerza (toque, botón con dwell del dedo, pinza o deslizar). Ahora son 7 juegos / 7 estrellas.
+- Tour Outer Banks: foto real del animal (polaroid) al tomarla; con la mano basta dejar el índice quieto sobre el animal (visor amarillo); botón 📸 que se ilumina si hay un animal a la vista; 8 paradas: 5 preguntas de los lugares + 3 al azar de `TRIVIA` (16 preguntas del estado).
+- Modo Quest como en la versión de Florida: 3 deportes grandes + fila de 4 mundos (Kitty Hawk, Golf, Charlotte, Outer Banks). En el visor el vuelo se guía con la mirada y el golf con la pinza (sin probar en un Quest real).
 ### 2026-11-20 · v2.2.0 · Claude (chat)
 - Se quitó el juego de drones (clave `heroes`, venía de la Isla de Héroes de Orlando): ya no está en `ORDER` (game.js), en el cofre (`DEST` en scenes.js), en `GAMES2` ni en el menú del Quest. Quedan 6 juegos y 6 estrellas; los contadores usan `ORDER.length`.
 ### 2026-11-20 · v2.1.0 · Claude (chat)

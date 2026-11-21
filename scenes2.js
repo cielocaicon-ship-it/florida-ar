@@ -1070,7 +1070,7 @@ function waterTour(ctx, opt) {
   const ship = pirateShip(); ship.position.set(1080, -0.6, -40); ship.rotation.y = -0.3; g.add(ship);
   const traffic = [[0xd4202a, 0, 13.6, 7], [0x24d1ff, 40, 13.6, 7], [0xffe14d, 20, 17.4, -6], [0x2a2f3e, 70, 17.4, -6]].map(a => car(g, ...a));
   // estrellas para recoger y boyas para esquivar, en filas (no hay boyas cerca de las paradas)
-  const STOPS_X = [230, 470, 700, 930, 1160];
+  const STOPS_X = [230, 340, 470, 700, 770, 930, 1040, 1160];
   const items = [], starGeoG = starMesh;
   for (let x = 40; x < END - 20; x += 16) {
     const free = [0, 1, 2].sort(() => Math.random() - 0.5);
@@ -1080,13 +1080,35 @@ function waterTour(ctx, opt) {
     const L = free.pop(), st = starGeoG(); st.scale.setScalar(1.7); st.position.set(x, 1.3, LANES[L]); g.add(st); items.push({ o: st, x, L, type: 'star' });
   }
   // arcos de parada y meta
-  const STOPS = [ // 5 paradas con pregunta sobre Carolina del Norte (+3 ⭐ si aciertas)
+  const STOPS = [ // 8 paradas con pregunta sobre Carolina del Norte (+3 ⭐ si aciertas). Las que no tienen q sacan una pregunta al azar de TRIVIA
     { x: 230, name: 'Corolla', q: '¿De dónde vienen los caballos salvajes que corren libres por las playas de Corolla?', o: ['De caballos españoles traídos en los años 1500', 'De caballos de carreras que escaparon en 1990', 'De un zoológico cercano'], a: 0 },
+    { x: 340, name: 'Duck' },
     { x: 470, name: 'Kill Devil Hills', q: '¿Qué lograron aquí los hermanos Wright el 17 de diciembre de 1903?', o: ['El primer viaje en tren', 'El primer vuelo en avión con motor', 'El primer viaje en globo'], a: 1 },
     { x: 700, name: 'Nags Head', q: '¿Cuál es la capital de Carolina del Norte?', o: ['Charlotte', 'Raleigh', 'Asheville'], a: 1 },
+    { x: 770, name: 'Roanoke Island' },
     { x: 930, name: 'Cabo Hatteras', q: '¿Qué tiene de especial el faro del Cabo Hatteras, el de las rayas en espiral?', o: ['Es el faro de ladrillo más alto de EE. UU.', 'Es el faro más antiguo del mundo', 'Está en la cima de una montaña'], a: 0 },
+    { x: 1040, name: 'Hatteras' },
     { x: 1160, name: 'Ocracoke', q: '¿Qué pirata famoso murió en una batalla en la isla de Ocracoke en 1718?', o: ['Francis Drake', 'Barba Negra', 'Henry Morgan'], a: 1 }
   ];
+  const TRIVIA = [ // preguntas al azar sobre Carolina del Norte (cada partida salen distintas)
+    { q: '¿Cuál es el apodo de Carolina del Norte?', o: ['The Tar Heel State (el estado de los talones de alquitrán)', 'The Sunshine State (el estado del sol)', 'The Golden State (el estado dorado)'], a: 0 },
+    { q: '¿Qué bebida se inventó en New Bern, Carolina del Norte, en 1893?', o: ['Coca-Cola', 'Pepsi', 'Sprite'], a: 1 },
+    { q: '¿En qué ciudad nacieron las donas Krispy Kreme en 1937?', o: ['Winston-Salem', 'Miami', 'Nueva York'], a: 0 },
+    { q: '¿Cuál es el ave oficial de Carolina del Norte?', o: ['El águila calva', 'El cardenal', 'El flamenco'], a: 1 },
+    { q: '¿Cuál es la ciudad más grande de Carolina del Norte?', o: ['Raleigh', 'Asheville', 'Charlotte'], a: 2 },
+    { q: '¿Cómo se llama la casa de Asheville que es la casa privada más grande de EE. UU.?', o: ['Biltmore', 'La Casa Blanca', 'Graceland'], a: 0 },
+    { q: '¿Cuál es la montaña más alta al este del río Misisipi?', o: ['El monte Everest', 'El monte Mitchell', 'El monte Rushmore'], a: 1 },
+    { q: '¿De qué cultivo es Carolina del Norte el mayor productor de EE. UU.?', o: ['La batata (camote)', 'La naranja', 'El café'], a: 0 },
+    { q: '¿Qué planta carnívora es nativa de las Carolinas?', o: ['El girasol', 'La Venus atrapamoscas', 'El cactus'], a: 1 },
+    { q: '¿Qué deporte de motor tiene su Salón de la Fama en Charlotte?', o: ['La Fórmula 1', 'El motocross', 'NASCAR'], a: 2 },
+    { q: '¿Qué famoso jugador de baloncesto creció en Wilmington, Carolina del Norte?', o: ['Michael Jordan', 'LeBron James', 'Kobe Bryant'], a: 0 },
+    { q: '¿Qué pasó con la colonia inglesa que se fundó en la isla Roanoke en 1587?', o: ['Se convirtió en Nueva York', 'Desapareció: la llaman la «Colonia Perdida»', 'Se mudó a Florida'], a: 1 },
+    { q: '¿Qué pueblo de Carolina del Norte es llamado «la cuna del golf estadounidense»?', o: ['Pinehurst', 'Charlotte', 'Durham'], a: 0 },
+    { q: '¿Qué tres ciudades forman el «Research Triangle»?', o: ['Charlotte, Asheville y Wilmington', 'Raleigh, Durham y Chapel Hill', 'Duck, Corolla y Ocracoke'], a: 1 },
+    { q: '¿Qué dicen las placas de los carros de Carolina del Norte?', o: ['First in Flight (primeros en volar)', 'Sunshine State', 'Live Free or Die'], a: 0 },
+    { q: '¿Cuál es la flor oficial de Carolina del Norte?', o: ['La rosa', 'El tulipán', 'El cornejo (dogwood)'], a: 2 }
+  ].sort(() => Math.random() - 0.5);
+  STOPS.forEach((S3, i) => { if (!S3.q) Object.assign(S3, TRIVIA[i % TRIVIA.length]); });
   const gate = (x, txt, col) => { const a = new THREE.Group(); a.position.set(x, 0, -15.5); g.add(a); for (const z of [-7.5, 7.5]) add(a, cyl(0.4, 0.5, 8, 12), M(col, { roughness: 0.4 }), 0, 3.5, z); add(a, box(0.5, 1.6, 15.6), M(col, { roughness: 0.4 }), 0, 7.6, 0); const sgn = add(a, new THREE.PlaneGeometry(14, 1.4), temp(new THREE.MeshStandardMaterial({ map: textTex(txt, 1024, 110, 'rgba(0,0,0,0)', '#ffffff', 'bold 70px system-ui'), transparent: true, emissive: 0x333333, side: THREE.DoubleSide })), -0.3, 7.6, 0, false); sgn.rotation.y = -Math.PI / 2; return a; };
   STOPS.forEach((S2, i) => gate(S2.x, `📍 PARADA ${i + 1} · ${S2.name.toUpperCase()}`, 0xff7a1a));
   gate(END, '🏁 META · PUERTO DE OCRACOKE', 0x1d6fd8);
@@ -1100,8 +1122,9 @@ function waterTour(ctx, opt) {
   const bar = document.createElement('div'); bar.id = 'pickbar'; bar.className = 'hidden'; document.getElementById('app').appendChild(bar);
   const setLane = l => { const n = clamp(l, 0, 2); if (n !== lane) { lane = n; ctx.sfx('click'); } };
   function showLanes() {
-    bar.innerHTML = '<button class="lane" data-d="-1">◀</button><button class="lane" data-d="1">▶</button>';
-    bar.querySelectorAll('button').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); setLane(lane + +b.dataset.d); }));
+    bar.innerHTML = '<button class="lane" data-d="-1">◀</button><button class="lane cam" id="bPhoto" aria-label="Tomar foto">📸</button><button class="lane" data-d="1">▶</button>';
+    bar.querySelectorAll('button[data-d]').forEach(b => { b.addEventListener('pointerdown', e => { e.preventDefault(); b.dataset.pd = 1; setLane(lane + +b.dataset.d); }); b.addEventListener('click', () => { if (b.dataset.pd) { b.dataset.pd = ''; return; } setLane(lane + +b.dataset.d); }); }); // click = elegido con el dedo (dwell)
+    bar.querySelector('#bPhoto').addEventListener('click', () => { if (!running) return; const o = bestVisible(); if (o) photo(o.a); else ctx.toast('📸 No hay animales a la vista. Mira a la playa (derecha) o al mar.', 1800); });
     bar.classList.remove('hidden'); document.body.classList.add('hasbar');
   }
   const KEYS = { ArrowLeft: -1, KeyA: -1, ArrowRight: 1, KeyD: 1 }, kd = e => { if (KEYS[e.code] && running) setLane(lane + KEYS[e.code]); };
@@ -1130,13 +1153,54 @@ function waterTour(ctx, opt) {
     const sp = a.children.find(o => o.material === hitM)?.userData.sp || a.userData.sp; if (!sp) return;
     ctx.sfx('shutter');
     if (opt.xr) ctx.xr().flash('white'); else { const f = document.getElementById('fade'); f.classList.add('on'); setTimeout(() => f.classList.remove('on'), 90); }
-    if (photos.has(sp)) { ctx.toast('📸 Ya tienes esa foto', 1200); return; }
+    const isNew = !photos.has(sp);
+    if (!opt.xr) showPhoto(a, sp, isNew);
+    if (!isNew) { ctx.toast('📸 Ya tienes esa foto', 1200); return; }
     photos.add(sp); stars += 2; info(); ctx.burst(a.getWorldPosition(_v), [0xffffff, 0xffd700], 30, 1.5); ctx.toast(`📸 ${FACT[sp]} (+2 ⭐)`, 4500);
+  }
+  // 📷 la foto de verdad: una cámara apunta al animal, se dibuja la escena en una imagen pequeña y se muestra como polaroid
+  const PH = { SIZE: 320, NEAR: 70, HOLD: 0.7, SEEN: 70 }; // SIZE: pixeles de la foto · NEAR: px entre tu dedo y el animal · HOLD: segundos con el dedo encima · SEEN: metros máximos
+  const phRT = new THREE.WebGLRenderTarget(PH.SIZE, PH.SIZE); phRT.texture.colorSpace = THREE.SRGBColorSpace;
+  const phCam = new THREE.PerspectiveCamera(24, 1, 0.1, 600), phBuf = new Uint8Array(PH.SIZE * PH.SIZE * 4);
+  const pol = document.createElement('div'); pol.id = 'polaroid'; pol.className = 'hidden'; pol.innerHTML = '<canvas width="' + PH.SIZE + '" height="' + PH.SIZE + '"></canvas><p></p>'; document.getElementById('app').appendChild(pol);
+  const vf = document.createElement('div'); vf.id = 'viewfinder'; vf.className = 'hidden'; document.getElementById('app').appendChild(vf);
+  let polT = null;
+  function showPhoto(a, sp, isNew) {
+    a.getWorldPosition(_v); _v.y += 0.6; camera.getWorldPosition(phCam.position); phCam.lookAt(_v);
+    const d = phCam.position.distanceTo(_v); phCam.fov = clamp(2 * Math.atan(3.2 / d) * 180 / Math.PI, 6, 50); phCam.updateProjectionMatrix();
+    const r = ctx.renderer, prev = r.getRenderTarget(); r.setRenderTarget(phRT); r.render(scene, phCam); r.readRenderTargetPixels(phRT, 0, 0, PH.SIZE, PH.SIZE, phBuf); r.setRenderTarget(prev);
+    const cv = pol.querySelector('canvas'), g2 = cv.getContext('2d'), im = g2.createImageData(PH.SIZE, PH.SIZE);
+    for (let y = 0; y < PH.SIZE; y++) im.data.set(phBuf.subarray((PH.SIZE - 1 - y) * PH.SIZE * 4, (PH.SIZE - y) * PH.SIZE * 4), y * PH.SIZE * 4); // la imagen sale al revés: se voltea
+    g2.putImageData(im, 0, 0);
+    pol.querySelector('p').textContent = (isNew ? '📸 ¡Nueva foto! +2 ⭐ · ' : '📸 ') + FACT[sp].split(':')[0];
+    pol.classList.remove('hidden', 'out'); clearTimeout(polT); polT = setTimeout(() => pol.classList.add('out'), 2600);
+  }
+  const _sp = new V3();
+  function onScreen(a) { // posición del animal en la pantalla (px) si se ve; si no, null
+    if (!a.parent || !a.parent.visible) return null;
+    a.getWorldPosition(_sp); _sp.y += 0.5; const d = _sp.distanceTo(camera.getWorldPosition(_v)); if (d > PH.SEEN) return null;
+    _sp.project(camera); if (_sp.z > 1 || Math.abs(_sp.x) > 0.92 || Math.abs(_sp.y) > 0.92) return null;
+    return { a, x: (_sp.x + 1) / 2 * innerWidth, y: (1 - _sp.y) / 2 * innerHeight, d };
+  }
+  function bestVisible() { // el animal visible más cercano al centro (prefiere los que aún no tienes)
+    let best = null, bs = 1e9;
+    for (const a of animals) { const o = onScreen(a); if (!o) continue; const sc = Math.hypot(o.x - innerWidth / 2, o.y - innerHeight / 2) + (photos.has(a.userData.sp || a.children.find(c => c.material === hitM)?.userData.sp) ? 2000 : 0); if (sc < bs) { bs = sc; best = o; } }
+    return best;
+  }
+  function nearPointer(px, py) { let best = null, bd = PH.NEAR; for (const a of animals) { const o = onScreen(a); if (!o) continue; const dd = Math.hypot(o.x - px, o.y - py); if (dd < bd) { bd = dd; best = o; } } return best; }
+  let aimA = null, aimT = 0, camBtnOn = false;
+  function photoAim(dt) { // ☝️ con el dedo: deja el índice encima de un animal y se toma la foto sola · 📸 el botón se ilumina cuando hay un animal a la vista
+    if (opt.xr || !running) { vf.classList.add('hidden'); return; }
+    const hand = ctx.isHand() && ctx.handVisible(), o = hand ? nearPointer(ctx.ptr.sx, ctx.ptr.sy) : null;
+    if (o && o.a === aimA) aimT += dt; else { aimA = o ? o.a : null; aimT = 0; }
+    if (o) { vf.classList.remove('hidden'); vf.style.left = o.x + 'px'; vf.style.top = o.y + 'px'; vf.style.setProperty('--p', Math.min(1, aimT / PH.HOLD)); } else vf.classList.add('hidden');
+    if (o && aimT >= PH.HOLD) { photo(o.a); aimT = -1.5; }
+    const b = document.getElementById('bPhoto'); const vis = !!bestVisible(); if (b && vis !== camBtnOn) { camBtnOn = vis; b.classList.toggle('ready', vis); }
   }
   const pickA = p => { const h = p.ray.intersectObjects(animals.filter(a => a.parent && a.parent.visible), true).find(o => o.object.material === hitM); return h ? h.object.parent : null; };
   const seat = new V3(), seatPos = () => { const V = VEH[veh || 'boat']; return seat.set(x + V.cam, V.eye + Math.sin(performance.now() / 600) * 0.06, z); };
   const refreshHint = () => ctx.hint(!running ? '' : opt.xr ? '↔️ Inclínate a un lado (o usa ◀ ▶ a tu derecha) para cambiar de carril · recoge ⭐ · esquiva las boyas · apunta a un animal y junta los dedos 📸'
-    : (ctx.isHand() ? '☝️ Mueve el índice a la izquierda, al centro o a la derecha para cambiar de carril' : '◀ ▶ o desliza para cambiar de carril') + ' · recoge ⭐ · esquiva las boyas · toca animales para fotos 📸');
+    : (ctx.isHand() ? '☝️ Mueve el índice a la izquierda, al centro o a la derecha para cambiar de carril · 📸 deja el dedo quieto sobre un animal para tomarle foto' : '◀ ▶ o desliza para cambiar de carril · 📸 toca un animal o el botón de la cámara para tomarle foto') + ' · recoge ⭐ · esquiva las boyas');
 
   // ===== 🥽 Quest: vas de pie en el vehículo; te inclinas para cambiar de carril; apuntas a un animal y juntas los dedos para la foto =====
   // SPEED: velocidad en el visor (1 = la del celular) · LANE_K: rapidez del cambio de carril · ROCK: cuánto se mece el vehículo (1 = como en el celular)
@@ -1190,9 +1254,8 @@ function waterTour(ctx, opt) {
     start() { this.camLock = false; pickVehicle(); },
     onDown(p) { if (intro.on) { intro.finish(); this.camLock = false; return; } sx = p.sx; sy = p.sy; },
     onMove(p) { if (p.src === 'hand' && running) setLane(p.ndc.x < -0.25 ? 0 : p.ndc.x > 0.25 ? 2 : 1); },
-    onUp(p) { if (!running || p.src === 'hand') return; const dx = p.sx - sx; if (Math.abs(dx) > 40) setLane(lane + Math.sign(dx)); else { const a = pickA(p); if (a) photo(a); } },
-    tap(p) { const a = running && pickA(p); if (a) photo(a); },
-    hoverable: p => (running ? pickA(p) : null),
+    onUp(p) { if (!running || p.src === 'hand') return; const dx = p.sx - sx; if (Math.abs(dx) > 40) setLane(lane + Math.sign(dx)); else { const a = pickA(p) || (nearPointer(p.sx, p.sy) || {}).a; if (a) photo(a); } },
+    tap(p) { if (!running) return; const a = pickA(p) || (nearPointer(p.sx, p.sy) || {}).a; if (a) photo(a); },
     update(dt, t) {
       mixers.forEach(m => m.update(dt)); ocean.userData.uT.value = t;
       if (intro.on) { intro.update(dt); if (!intro.on) this.camLock = false; }
@@ -1200,11 +1263,12 @@ function waterTour(ctx, opt) {
         const slow = slowAt.some(sx => Math.abs(sx - x) < 35) ? 0.6 : 1;
         x += SPEED[veh] * slow * (opt.xr ? XW.SPEED : 1) * dt; inv = Math.max(0, inv - dt);
         for (const G4 of GUIDE) if (!G4.done && x >= G4.x - 30) { G4.done = true; ctx.toast(G4.t, 4500); ctx.sfx('click'); }
+        photoAim(dt);
         if (stopI < STOPS.length && x >= STOPS[stopI].x) { x = STOPS[stopI].x; ask(); }
         if (x >= END) { x = END; running = false; bar.classList.add('hidden'); if (eng) eng.gn.gain.value = 0.0001;
           for (let k = 0; k < 6; k++) setTimeout(() => ctx.burst(_v.set(END + rnd(-5, 15), rnd(8, 14), rnd(-25, -10)), [0xff4fa3, 0xffd23a, 0x24d1ff, 0xffffff], 60, 4), k * 250);
-          ctx.sfx('crowd'); const pts = right * 2 + photos.size + hearts, medal = pts >= 13 ? 'oro' : pts >= 9 ? 'plata' : 'bronce';
-          setTimeout(() => ctx.win('miami', { medal, line: `✅ ${right}/5 preguntas · 📸 ${photos.size}/4 fotos · ⭐ ${stars}` }), 1500); }
+          ctx.sfx('crowd'); const pts = right * 2 + photos.size + hearts, medal = pts >= 18 ? 'oro' : pts >= 12 ? 'plata' : 'bronce';
+          setTimeout(() => ctx.win('miami', { medal, line: `✅ ${right}/${STOPS.length} preguntas · 📸 ${photos.size}/4 fotos · ⭐ ${stars}` }), 1500); }
       }
       z = lerp(z, LANES[lane], Math.min(1, dt * (opt.xr ? XW.LANE_K : 6)));
       if (!intro.on && !opt.xr) camera.position.copy(seatPos());
@@ -1238,7 +1302,7 @@ function waterTour(ctx, opt) {
       if (running) { infoT += dt; if (infoT > 0.5) { infoT = 0; info(); } }
       if (opt.xr) xrFinder();
     },
-    dispose() { alive = false; running = false; restoreEnv(); if (xLeg) xLeg.dispose(); bar.remove(); document.body.classList.remove('hasbar'); removeEventListener('keydown', kd); if (eng) { try { eng.o.stop(); } catch (e) {} } }
+    dispose() { alive = false; running = false; restoreEnv(); if (xLeg) xLeg.dispose(); bar.remove(); pol.remove(); vf.remove(); phRT.dispose(); clearTimeout(polT); document.body.classList.remove('hasbar'); removeEventListener('keydown', kd); if (eng) { try { eng.o.stop(); } catch (e) {} } }
   };
 }
 
@@ -1289,22 +1353,24 @@ function firstFlight(ctx, opt) {
   let running = false, phase = 'intro', x = -12, y = 0.6, z = 0, ty = 4, tz = 0, vy = 0, vz = 0, hearts = FLY.HEARTS, passed = 0, inv = 0, introT = 0, gust = 0, gustT = 6, ended = false, infoT = 0;
   const keys = { up: 0, down: 0, left: 0, right: 0 };
   const info = () => ctx.info(`${'❤️'.repeat(hearts)}${'🖤'.repeat(FLY.HEARTS - hearts)} · 🎯 ${passed}/${FLY.RINGS} · 🏁 ${Math.max(0, Math.min(100, Math.round((x + 12) / (END - 18) * 100)))}%`);
-  const refreshHint = () => ctx.hint(ctx.isHand() ? '☝️ Mueve tu índice: arriba sube, abajo baja, a los lados gira · pasa por los aros' : '👆 Arrastra el dedo: arriba sube, abajo baja, a los lados gira · pasa por los aros');
+  const refreshHint = () => ctx.hint(opt.xr ? '👀 Mira hacia donde quieres volar: arriba sube, abajo baja, a los lados gira · pasa por los aros' : ctx.isHand() ? '☝️ Mueve tu índice: arriba sube, abajo baja, a los lados gira · pasa por los aros' : '👆 Arrastra el dedo: arriba sube, abajo baja, a los lados gira · pasa por los aros');
   const aim = p => { ty = FLY.YMIN + (clamp(p.ndc.y, -1, 1) + 1) / 2 * (FLY.YMAX - FLY.YMIN); tz = clamp(p.ndc.x, -1, 1) * FLY.ZMAX; };
   const KD = e => { const k = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' }[e.code]; if (k) keys[k] = e.type === 'keydown' ? 1 : 0; };
   addEventListener('keydown', KD); addEventListener('keyup', KD);
   function finishIntro() { if (phase !== 'intro') return; phase = 'ready'; if (!opt.quick) ctx.ready(); }
+  if (opt.xr) setTimeout(finishIntro, 300); // 🥽 en el visor: sin intro de cámara; vas sentado detrás del avión y lo guías con la mirada
+  const _gz = new V3();
   function end() {
     if (ended) return; ended = true; running = false;
     if (passed >= FLY.NEED) {
       const medal = passed >= FLY.RINGS ? 'oro' : passed >= FLY.RINGS - 2 ? 'plata' : 'bronce', b = ctx.best('orlando', passed);
-      ctx.sfx('crowd'); setTimeout(() => ctx.win('orlando', { medal, line: `🎯 ${passed} de ${FLY.RINGS} aros · ${'❤️'.repeat(hearts)}`, record: b.isNew ? '¡NUEVO RÉCORD!' : `RÉCORD: ${b.best} aros` }), 900);
-    } else setTimeout(() => ctx.lose(`Pasaste ${passed} de ${FLY.RINGS} aros y necesitas ${FLY.NEED}. Consejo: mira el siguiente aro y mueve el dedo con calma hacia él.`), 700);
+      ctx.sfx('crowd'); setTimeout(() => ctx.win('orlando', { medal, line: `🎯 ${passed}/${FLY.RINGS} · ${'❤️'.repeat(hearts)}`, record: b.isNew ? '¡NUEVO RÉCORD!' : `RÉCORD: 🎯 ${b.best}` }), 900);
+    } else setTimeout(() => ctx.lose(`🎯 ${passed}/${FLY.RINGS} aros · necesitas ${FLY.NEED}. Consejo: mira el siguiente aro y mueve el dedo con calma hacia él.`), 700);
   }
   const _c = new V3(), _t = new V3();
   return {
     camLock: true, look: false, dwellTime: 0.6, refreshHint,
-    start() { running = true; phase = 'fly'; ty = 4; inv = 2.5; info(); refreshHint(); ctx.sfx('portal'); ctx.toast('🛫 ¡Despegue! Como Orville Wright en 1903', 2500); },
+    start() { running = true; phase = 'fly'; ty = 4; inv = 2.5; if (opt.xr) ctx.teleport(x - 7, z, x + 20, z, Math.max(0, y - 0.9)); info(); refreshHint(); ctx.sfx('portal'); ctx.toast('🛫 ¡Despegue! Como Orville Wright en 1903', 2500); },
     onDown(p) { if (phase === 'intro') { finishIntro(); return; } if (running) aim(p); },
     onMove(p) { if (running && (p.down || p.src === 'hand')) aim(p); },
     onUp() {},
@@ -1312,8 +1378,9 @@ function firstFlight(ctx, opt) {
     update(dt, t) {
       ocean.userData.uT.value = t;
       plane.userData.props.forEach(pr => (pr.rotation.x += dt * (running ? 30 : 6)));
-      if (phase === 'intro') { introT += dt; const a = -0.6 + introT * 0.35; camera.position.set(-12 + Math.cos(a) * 9, 3 + introT * 0.2, Math.sin(a) * 9); camera.lookAt(-12, 1.2, 0); if (introT > 5) finishIntro(); return; }
+      if (phase === 'intro' && !opt.xr) { introT += dt; const a = -0.6 + introT * 0.35; camera.position.set(-12 + Math.cos(a) * 9, 3 + introT * 0.2, Math.sin(a) * 9); camera.lookAt(-12, 1.2, 0); if (introT > 5) finishIntro(); return; }
       if (running) {
+        if (opt.xr) { camera.getWorldDirection(_gz); ty = clamp(y + _gz.y * 10, FLY.YMIN, FLY.YMAX); tz = clamp(z + _gz.z * 10, -FLY.ZMAX, FLY.ZMAX); } // la mirada guía el avión
         if (keys.up || keys.down) ty = clamp(ty + (keys.up - keys.down) * dt * 8, FLY.YMIN, FLY.YMAX);
         if (keys.left || keys.right) tz = clamp(tz + (keys.right - keys.left) * dt * 8, -FLY.ZMAX, FLY.ZMAX);
         gustT -= dt; if (gustT <= 0) { gust = pick([-1, 1]) * rnd(2, 3.5); gustT = rnd(6, 9); ctx.toast(gust > 0 ? '💨 ¡Ráfaga de viento hacia la derecha!' : '💨 ¡Ráfaga de viento hacia la izquierda!', 1500); }
@@ -1334,15 +1401,175 @@ function firstFlight(ctx, opt) {
         infoT += dt; if (infoT > 0.3) { infoT = 0; info(); }
       } else if (phase === 'land') { x += FLY.SPEED * 0.5 * dt; y += (0.6 - y) * dt * 1.5; z += (0 - z) * dt * 1.5; if (y < 0.7) { phase = 'done'; ctx.burst(_t.set(x, 0.5, z), [0xe6d09c, 0xffffff], 40, 2); end(); } }
       plane.position.set(x, y, z); plane.rotation.set(clamp(-vz * 0.06, -0.6, 0.6), 0, clamp(vy * 0.04, -0.35, 0.35));
-      _c.set(x - 13, y + 3.4, z * 0.8); camera.position.lerp(_c, Math.min(1, dt * 4)); camera.lookAt(_t.set(x + 20, y - 0.4, z));
+      if (opt.xr) { if (phase !== 'intro' && phase !== 'ready') ctx.xr().ride(x - 7, z, Math.max(0, y - 0.9)); }
+      else { _c.set(x - 13, y + 3.4, z * 0.8); camera.position.lerp(_c, Math.min(1, dt * 4)); camera.lookAt(_t.set(x + 20, y - 0.4, z)); }
       skyM.position.x = x; sun.position.set(x - 20, 30, 14); sun.target.position.set(x + 10, 0, 0);
     },
     dispose() { running = false; restoreEnv(); removeEventListener('keydown', KD); removeEventListener('keyup', KD); }
   };
 }
 
+/* ================= PINEHURST — GOLF (clave 'golf') =================
+   Pinehurst, en Carolina del Norte, es «la cuna del golf estadounidense». 5 hoyos cortos en un green con trampas de arena.
+   Cada golpe tiene 2 toques: 1) fijar la DIRECCIÓN (la flecha se mueve sola) y 2) fijar la FUERZA (la barra sube y baja).
+   En el celular también puedes deslizar el dedo desde la bola hacia el hoyo.
+   GOLF: ajustes · VMAX: fuerza máxima (m/s) · GREEN/ROUGH/SAND: cuánto frena cada superficie · CUP: radio del hoyo (m) · CAP: velocidad máxima para que la bola entre
+   SWING: velocidad de la flecha · PWR: velocidad de la barra de fuerza · MAXS: golpes máximos por hoyo · EXTRA: golpes sobre el par permitidos para ganar la estrella */
+const GOLF = { VMAX: 9.5, GREEN: 1.5, ROUGH: 5, SAND: 11, CUP: 0.22, CAP: 2.6, SWING: 1.5, PWR: 0.75, MAXS: 5, EXTRA: 4 };
+const HOLES = [ // inicio, hoyo, pendiente (empuja la bola) y trampas de arena [x, z, radio]
+  { par: 2, start: [0, 9], hole: [0, -8], slope: [0, 0], sand: [] },
+  { par: 2, start: [-3, 9], hole: [3, -8], slope: [0.25, 0], sand: [[0, 0, 2.2]] },
+  { par: 3, start: [0, 10], hole: [-4, -9], slope: [-0.2, 0.12], sand: [[-1, -2, 2.4], [3, -6, 1.8]] },
+  { par: 2, start: [4, 9], hole: [-3, -8], slope: [0.3, -0.1], sand: [[1, 1, 2]] },
+  { par: 3, start: [0, 10], hole: [0, -10], slope: [0, 0], sand: [[-2.2, -3, 1.9], [2.2, -3, 1.9], [0, -6.5, 1.4]] }
+];
+function longleaf(g, x, z, s = 1) { // pino de hoja larga, el árbol oficial de Carolina del Norte
+  const p = new THREE.Group(); p.position.set(x, 0, z); p.scale.setScalar(s); g.add(p);
+  add(p, cyl(0.18, 0.28, 12, 7), M(0x6b4a32), 0, 6, 0);
+  for (let k = 0; k < 5; k++) add(p, sph(rnd(1.1, 1.7), 8), M(pick([0x2f5a2a, 0x3a6a30, 0x2a4f26]), { roughness: 1 }), rnd(-1.2, 1.2), rnd(11, 13.5), rnd(-1.2, 1.2));
+  return p;
+}
+function golf(ctx, opt) {
+  const { camera, scene } = ctx, g = new THREE.Group(); ctx.root.add(g);
+  const skyM = sky(0x3f86d8, 0xd8ecff, 0xc8d8b0); g.add(skyM);
+  const restoreEnv = envFromSky(ctx, skyM);
+  scene.fog = new THREE.Fog(0xd8ecff, 60, 220);
+  lightRig(g, { sky: 0xd8ecff, ground: 0x9ab070, hemi: 1.0, sun: 0xfff2dc, sunI: 2.7, dir: [-12, 26, 10], size: 22, target: [0, 0, 0] });
+  // campo: arena natural de los Sandhills, calle, green, pinos y el club
+  const sandy = add(g, new THREE.CircleGeometry(160, 48), M(0xd9c79a, { roughness: 1 }), 0, -0.02, 0, false); sandy.rotation.x = -Math.PI / 2; sandy.receiveShadow = true;
+  for (let i = 0; i < 260; i++) { const wx = rnd(-60, 60), wz = rnd(-70, 60); if ((wx / 13) ** 2 + (wz / 18) ** 2 < 1) continue; add(g, cone(0.25, 0.6, 4), M(pick([0x9a9a5a, 0xb0a868]), { roughness: 1 }), wx, 0.25, wz, false); } // pasto de alambre (wiregrass), fuera del campo
+  const grassT = rep(canvasTex(256, 256, (c, w, h) => { for (let i = 0; i < 16; i++) { c.fillStyle = i % 2 ? '#5fa845' : '#6bb54f'; c.fillRect(0, i * 16, w, 16); } }), 6, 6);
+  const fair = add(g, new THREE.CircleGeometry(1, 48), temp(new THREE.MeshStandardMaterial({ map: grassT, roughness: 0.9 })), 0, 0, 0, false); fair.rotation.x = -Math.PI / 2; fair.scale.set(12, 17, 1); fair.receiveShadow = true;
+  const greenT = rep(canvasTex(256, 256, (c, w, h) => { for (let i = 0; i < 16; i++) { c.fillStyle = i % 2 ? '#4fae4a' : '#58b852'; c.fillRect(i * 16, 0, 16, h); } }), 4, 4);
+  const green = add(g, new THREE.CircleGeometry(1, 48), temp(new THREE.MeshStandardMaterial({ map: greenT, roughness: 0.7 })), 0, 0.01, 0, false); green.rotation.x = -Math.PI / 2; green.scale.set(8, 13, 1); green.receiveShadow = true;
+  for (const [x, z, s] of [[-18, -10, 1.1], [-22, 4, 1], [-16, 16, 1.2], [18, -14, 1], [21, 0, 1.15], [17, 15, 1], [-8, -28, 1.2], [6, -30, 1], [-30, -22, 1.3], [30, -20, 1.1], [-34, 12, 1.2], [34, 10, 1]]) longleaf(g, x, z, s);
+  const club = new THREE.Group(); club.position.set(0, 0, -46); g.add(club); // casa club blanca con techo verde y columnas
+  add(club, box(26, 7, 9), M(0xf4f1ea, { roughness: 0.8 }), 0, 3.5, 0); add(club, box(27, 0.6, 10), M(0x2f5a3a), 0, 7.3, 0);
+  for (let k = -5; k <= 5; k++) add(club, cyl(0.25, 0.25, 6, 8), M(0xffffff), k * 2.2, 3, 5);
+  const sign = add(club, new THREE.PlaneGeometry(12, 1.8), temp(new THREE.MeshStandardMaterial({ map: textTex('PINEHURST · GOLF', 1024, 160, '#2f5a3a', '#ffffff', 'bold 72px Georgia,serif') })), 0, 8.8, 5.1, false);
+  const lb = label('Pinehurst · la cuna del golf de EE. UU.', 1.2, '#ffffff', 'rgba(20,60,30,.85)'); lb.position.set(0, 11.5, -40); g.add(lb);
+  // hoyo, bandera, bola, trampas, flecha de dirección y barra de fuerza
+  const cup = add(g, new THREE.CircleGeometry(GOLF.CUP, 24), M(0x111111), 0, 0.02, 0, false); cup.rotation.x = -Math.PI / 2;
+  const flag = new THREE.Group(); g.add(flag); add(flag, cyl(0.025, 0.025, 2.3, 6), M(0xffffff), 0, 1.15, 0);
+  const cloth = add(flag, new THREE.PlaneGeometry(0.7, 0.45), M(0xffd23a, { side: THREE.DoubleSide }), 0.36, 2.05, 0, false);
+  const ball = add(g, sph(0.07, 16), M(0xffffff, { roughness: 0.35 }), 0, 0.07, 0);
+  const sandG = new THREE.Group(); g.add(sandG);
+  const arrow = new THREE.Group(); g.add(arrow);
+  const arM = temp(new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.9, depthTest: false }));
+  const shaft = add(arrow, box(0.07, 0.01, 1), arM, 0, 0.03, -0.5, false), head = add(arrow, cone(0.16, 0.34, 3), arM, 0, 0.03, -1.15, false); head.rotation.x = -Math.PI / 2; shaft.renderOrder = head.renderOrder = 50;
+  const dots = []; for (let k = 0; k < 6; k++) { const d = add(g, sph(0.035, 8), temp(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 })), 0, 0.05, 0, false); dots.push(d); } // ayuda: puntitos que muestran la dirección
+  const bar = document.createElement('div'); bar.id = 'pickbar'; bar.className = 'hidden'; document.getElementById('app').appendChild(bar);
+  bar.innerHTML = '<button class="big" id="bSwing">⛳ Fijar dirección</button>'; const bSwing = bar.querySelector('#bSwing');
+  bSwing.addEventListener('click', () => step());
+  // estado
+  let hi = 0, H = HOLES[0], strokes = 0, total = 0, parTotal = 0, phase = 'intro', aim = 0, aimBase = 0, aimT = 0, pwr = 0, pwrT = 0, running = false, ended = false;
+  const pos = new V2(), vel = new V2(), last = new V2(), hole = new V2(); let introT = 0, sinkT = 0;
+  const cards = []; // golpes por hoyo
+  const info = () => ctx.info(`⛳ Hoyo ${hi + 1}/5 · Par ${H.par} · Golpes ${strokes} · Total ${total + strokes}/${parTotal + H.par}`);
+  const surface = (x, z) => { for (const [sx, sz, r] of H.sand) if (Math.hypot(x - sx, z - sz) < r) return 'sand'; return (x / 8) ** 2 + (z / 13) ** 2 < 1 ? 'green' : (x / 12) ** 2 + (z / 17) ** 2 < 1 ? 'rough' : 'out'; };
+  const refreshHint = () => ctx.hint(opt.xr ? '🤏 Junta los dedos: 1) fija la dirección · 2) fija la fuerza' : ctx.isHand() ? '☝️ Deja el índice quieto sobre el botón (o junta los dedos): 1) dirección · 2) fuerza' : '👆 Toca: 1) fija la dirección · 2) fija la fuerza · o desliza desde la bola hacia el hoyo');
+  function setupHole(i) {
+    hi = i; H = HOLES[i]; strokes = 0;
+    pos.set(...H.start); hole.set(...H.hole); vel.set(0, 0);
+    cup.position.set(hole.x, 0.02, hole.y); flag.position.set(hole.x, 0, hole.y); flag.visible = true;
+    sandG.clear(); for (const [x, z, r] of H.sand) { const s = add(sandG, new THREE.CircleGeometry(r, 28), M(0xead9a8, { roughness: 1 }), x, 0.015, z, false); s.rotation.x = -Math.PI / 2; }
+    ball.visible = true; placeBall(); readyAim(); info();
+    if (running) ctx.toast(`⛳ Hoyo ${i + 1} · Par ${H.par}` + (H.slope[0] || H.slope[1] ? ' · ⚠️ el green está inclinado' : ''), 2200);
+  }
+  function placeBall() { ball.position.set(pos.x, 0.07, pos.y); }
+  function readyAim() {
+    aimBase = Math.atan2(hole.x - pos.x, -(hole.y - pos.y)); aimT = 0; pwr = 0; phase = 'aim'; bSwing.textContent = '⛳ Fijar dirección'; arrow.visible = true;
+    if (opt.xr) { const bx = pos.x - Math.sin(aimBase) * 1.2, bz = pos.y + Math.cos(aimBase) * 1.2; ctx.teleport(bx, bz, hole.x, hole.y); }
+  }
+  function step() { // botón / toque / pinza
+    if (!running) return;
+    if (phase === 'aim') { phase = 'power'; pwrT = 0; ctx.sfx('click'); bSwing.textContent = '💥 Fijar fuerza'; }
+    else if (phase === 'power') shoot(aim, pwr);
+  }
+  function shoot(ang, p) {
+    phase = 'roll'; strokes++; last.copy(pos); arrow.visible = false; dots.forEach(d => (d.visible = false));
+    const v = 0.8 + p * (GOLF.VMAX - 0.8); vel.set(Math.sin(ang) * v, -Math.cos(ang) * v);
+    ctx.sfx('hit'); if (opt.xr) ctx.xr().haptic(0.7, 40); info(); bSwing.textContent = '⏳ …'; bSwing.disabled = true;
+  }
+  function holeDone(inCup) {
+    phase = 'sunk'; sinkT = 0; bSwing.disabled = true;
+    const sc = inCup ? strokes : GOLF.MAXS + 1, diff = sc - H.par;
+    const name = !inCup ? 'MÁXIMO DE GOLPES' : sc === 1 ? '¡HOYO EN UNO!' : diff <= -1 ? '¡BIRDIE!' : diff === 0 ? '¡PAR!' : diff === 1 ? 'BOGEY' : 'DOBLE BOGEY';
+    ctx.pop(name, inCup && diff <= 0 ? 'good' : 'small'); ctx.sfx(inCup && diff <= 0 ? 'score' : 'swish'); if (inCup && diff <= 0) ctx.burst(_v3.set(hole.x, 0.3, hole.y), [0xffd23a, 0xffffff, 0x4fae4a], 70, 2.5);
+    total += sc; parTotal += H.par; cards.push(sc); strokes = 0; info();
+    setTimeout(() => { if (!alive) return; if (hi < HOLES.length - 1) { bSwing.disabled = false; setupHole(hi + 1); } else finish(); }, 1700);
+  }
+  function finish() {
+    if (ended) return; ended = true; running = false; bar.classList.add('hidden'); document.body.classList.remove('hasbar');
+    const over = total - parTotal, line = `⛳ ${total} golpes · par ${parTotal} (${over > 0 ? '+' + over : over === 0 ? 'E' : over})`;
+    if (over <= GOLF.EXTRA) { const medal = over <= 0 ? 'oro' : over <= 2 ? 'plata' : 'bronce', b = ctx.best('golf', total, true); ctx.sfx('crowd'); ctx.win('golf', { medal, line, record: b.isNew ? '¡NUEVO RÉCORD!' : `RÉCORD: ⛳ ${b.best}` }); }
+    else ctx.lose(`⛳ ${total} golpes · par ${parTotal}. Para ganar la estrella necesitas ${parTotal + GOLF.EXTRA} o menos. Consejo: en el green, los tiros suaves ganan; mira la pendiente y apunta un poco hacia arriba de ella.`);
+  }
+  // deslizar en el celular: de la bola hacia el hoyo (largo = fuerza)
+  let sx0 = 0, sy0 = 0, t0 = 0;
+  let alive = true; const _v3 = new V3(), _c = new V3(), _t = new V3();
+  setupHole(0); phase = 'intro';
+  if (opt.xr) setTimeout(() => { if (alive && phase === 'intro') { phase = 'ready'; ctx.ready(); } }, 300); // en el visor no hay intro de cámara
+  return {
+    camLock: !opt.xr, look: false, dwellTime: 0.7, refreshHint,
+    start() { running = true; bar.classList.remove('hidden'); document.body.classList.add('hasbar'); refreshHint(); readyAim(); info(); },
+    onDown(p) { if (phase === 'intro') { phase = 'ready'; ctx.ready(); return; } sx0 = p.sx; sy0 = p.sy; t0 = performance.now(); },
+    onMove() {},
+    onUp(p) {
+      if (!running || p.src === 'hand') return;
+      const dx = p.sx - sx0, dy = sy0 - p.sy, L = Math.hypot(dx, dy);
+      if (L > 70 && dy > 20 && (phase === 'aim' || phase === 'power')) { const ang = aimBase + Math.atan2(dx, dy) * 0.6, pw = clamp(L / (innerHeight * 0.55), 0.05, 1); shoot(ang, pw); }
+      else if (L < 20) step();
+    },
+    tap() { if (phase === 'intro') { phase = 'ready'; ctx.ready(); return; } step(); },
+    xrInput(type) { if (type === 'selectstart') step(); },
+    update(dt, t) {
+      cloth.rotation.y = Math.sin(t * 2.5) * 0.25;
+      if (phase === 'intro' && !opt.xr) { introT += dt; const a = introT * 0.25; camera.position.set(Math.sin(a) * 16, 6 + Math.sin(a) * 1.5, Math.cos(a) * 16 + 2); camera.lookAt(0, 0, -2); if (introT > 6) { phase = 'ready'; ctx.ready(); } return; }
+      if (phase === 'aim') { aimT += dt; aim = aimBase + Math.sin(aimT * GOLF.SWING) * 0.55; }
+      if (phase === 'power') { pwrT += dt; const k = (pwrT * GOLF.PWR) % 2; pwr = k < 1 ? k : 2 - k; }
+      if (phase === 'aim' || phase === 'power' || phase === 'ready') {
+        arrow.position.set(pos.x, 0, pos.y); arrow.rotation.y = -aim; const L = 0.6 + (phase === 'power' ? pwr * 3.4 : 1.4);
+        shaft.scale.z = L; shaft.position.z = -L / 2; head.position.z = -L - 0.15; arM.color.set(phase === 'power' ? new THREE.Color().setHSL(0.33 - pwr * 0.33, 1, 0.55) : 0xffd23a);
+        dots.forEach((d, k) => { d.visible = true; const r = 1.2 + k * 0.9; d.position.set(pos.x + Math.sin(aim) * r, 0.05, pos.y - Math.cos(aim) * r); });
+        if (running) ctx.info(`⛳ Hoyo ${hi + 1}/5 · Par ${H.par} · Golpe ${strokes + 1}` + (phase === 'power' ? ` · 💥 ${'▮'.repeat(Math.round(pwr * 10))}${'▯'.repeat(10 - Math.round(pwr * 10))}` : ''));
+      }
+      if (phase === 'roll') {
+        const sub = 4, h = dt / sub;
+        for (let k = 0; k < sub; k++) {
+          const sf = surface(pos.x, pos.y), fr = sf === 'sand' ? GOLF.SAND : sf === 'rough' ? GOLF.ROUGH : GOLF.GREEN, sp = vel.length();
+          if (sf === 'green') vel.x += H.slope[0] * h, vel.y += H.slope[1] * h;
+          if (sp > 0) vel.multiplyScalar(Math.max(0, sp - fr * h) / sp);
+          pos.addScaledVector(vel, h);
+          const dh = pos.distanceTo(hole);
+          if (dh < GOLF.CUP) { if (vel.length() < GOLF.CAP) { ball.position.set(hole.x, -0.05, hole.y); ctx.sfx('rim'); holeDone(true); return; } vel.rotateAround(new V2(), rnd(-0.6, 0.6)).multiplyScalar(0.6); ctx.sfx('rim'); } // ¡bordeó el hoyo!
+          else if (dh < GOLF.CUP * 2.2 && vel.length() < GOLF.CAP * 0.6) { const pull = hole.clone().sub(pos).setLength(1.2 * h); vel.add(pull); } // la bola «cae» si pasa muy cerca y despacio
+          if (surface(pos.x, pos.y) === 'out') { ctx.toast('🚫 ¡Fuera del campo! +1 golpe. Vuelves a donde estabas.', 2000); ctx.sfx('block'); strokes++; pos.copy(last); vel.set(0, 0); }
+        }
+        placeBall(); ball.rotation.x -= vel.y * dt * 6; ball.rotation.z += vel.x * dt * 6;
+        if (vel.length() < 0.04) {
+          vel.set(0, 0); bSwing.disabled = false;
+          if (strokes >= GOLF.MAXS) holeDone(false); else { if (surface(pos.x, pos.y) === 'sand') ctx.toast('🏖️ Quedaste en la arena: golpea más fuerte', 1600); readyAim(); info(); }
+        }
+      }
+      if (!opt.xr) { // cámara detrás de la bola, mirando al hoyo
+        const yaw = phase === 'roll' ? Math.atan2(hole.x - last.x, -(hole.y - last.y)) : aimBase, bx = phase === 'roll' ? last.x : pos.x, bz = phase === 'roll' ? last.y : pos.y;
+        _c.set(bx - Math.sin(yaw) * 4.5, 2.6, bz + Math.cos(yaw) * 4.5); camera.position.lerp(_c, Math.min(1, dt * 3));
+        _t.set(phase === 'roll' ? pos.x : (pos.x + hole.x) / 2, 0, phase === 'roll' ? pos.y : (pos.y + hole.y) / 2); camera.lookAt(_t);
+      }
+    },
+    dispose() { alive = false; running = false; restoreEnv(); bar.remove(); document.body.classList.remove('hasbar'); }
+  };
+}
+
 /* ---------- iconos de portal y catálogo ---------- */
 export const GAMES2 = {
+  golf: {
+    short: 'Golf Pinehurst', title: '⛳ Pinehurst — Golf', pix: 'GOLF PINEHURST', tag: '5 HOYOS · LA CUNA DEL GOLF', winMsg: '¡Jugaste como en el U.S. Open de Pinehurst!', create: golf,
+    icon() { const i = new THREE.Group(); add(i, cyl(0.006, 0.006, 0.34, 6), M(0xffffff), 0, 0, 0); add(i, new THREE.PlaneGeometry(0.14, 0.09), M(0xffd23a, { side: THREE.DoubleSide }), 0.07, 0.12, 0); add(i, sph(0.04, 12), M(0xffffff), -0.08, -0.15, 0.04); i.add(glow(0x4fae4a, 0.3)); return i; },
+    how: h => 'Juegas <b>5 hoyos</b> en un green de Pinehurst. Cada golpe tiene dos pasos: <b>1)</b> la flecha amarilla se mueve sola: ' + (h ? 'deja tu índice quieto sobre el botón (o junta los dedos)' : 'toca la pantalla o el botón') + ' para <b>fijar la dirección</b>; <b>2)</b> la barra de fuerza sube y baja: vuelve a tocar para <b>fijar la fuerza</b>.' + (h ? '' : ' También puedes <b>deslizar el dedo</b> desde la bola hacia el hoyo.') + '<br>🏖️ La arena frena la bola · ⚠️ algunos greens están inclinados · 🚫 si sales del campo, +1 golpe.<br><b>Termina con máximo 4 golpes sobre el par</b> para ganar la estrella.',
+    fact: 'Pinehurst, en Carolina del Norte, es conocido como «la cuna del golf estadounidense»: allí se juega golf desde 1895. Su campo No. 2, diseñado por Donald Ross en 1907, fue sede del U.S. Open en 1999, 2005, 2014 y 2024, y volverá en 2029, 2035, 2041 y 2047.'
+  },
   orlando: {
     short: 'Primer vuelo', title: '✈️ Kitty Hawk — El primer vuelo', pix: 'PRIMER VUELO', tag: 'HERMANOS WRIGHT · 1903', countdown: true, winMsg: '¡Volaste como los hermanos Wright!', create: firstFlight,
     icon() { const i = new THREE.Group(); const f = wrightFlyer(); f.scale.setScalar(0.028); i.add(f); return i; },
@@ -1350,8 +1577,8 @@ export const GAMES2 = {
     fact: 'El 17 de diciembre de 1903, Orville Wright voló 12 segundos y unos 36 metros en Kill Devil Hills, cerca de Kitty Hawk: el primer vuelo con motor de la historia. Ese día hicieron 4 vuelos; el más largo, de Wilbur, duró 59 segundos.'
   },
   miami: {
-    short: 'Outer Banks', title: '🚤 Outer Banks — Tour en lancha', pix: 'OUTER BANKS', tag: 'COSTA · FAROS · 5 PARADAS', winMsg: '¡Completaste el tour por los Outer Banks!', create: waterTour,
-    how: h => 'Recorres en lancha los <b>Outer Banks</b>, las islas de la costa de Carolina del Norte. <b>A tu derecha</b> verás la playa, las casas sobre pilotes, los <b>caballos salvajes</b>, el monumento a los <b>hermanos Wright</b>, las dunas de Jockey\'s Ridge, los faros de <b>Currituck, Bodie Island, Cabo Hatteras y Ocracoke</b>, y vallas con lo más famoso del resto del estado. A tu izquierda, en el mar, aparece el barco de <b>Barba Negra</b> 🏴‍☠️.<br>🚤 El vehículo avanza solo. Tú solo eliges el <b>carril</b>: ' + (h ? 'mueve tu índice a la izquierda, al centro o a la derecha' : 'botones <b>◀ ▶</b> o desliza el dedo') + '.<br>⭐ Recoge estrellas · 🔴🟢 esquiva las boyas (tienes 3 ❤️) · 📸 toca los animales para fotografiarlos (🐴 🐬 🐢 🐦).<br>❓ En 5 paradas respondes una pregunta sobre Carolina del Norte. ¡Llega a Ocracoke!',
+    short: 'Outer Banks', title: '🚤 Outer Banks — Tour en lancha', pix: 'OUTER BANKS', tag: 'COSTA · FAROS · 8 PARADAS', winMsg: '¡Completaste el tour por los Outer Banks!', create: waterTour,
+    how: h => 'Recorres en lancha los <b>Outer Banks</b>, las islas de la costa de Carolina del Norte. <b>A tu derecha</b> verás la playa, las casas sobre pilotes, los <b>caballos salvajes</b>, el monumento a los <b>hermanos Wright</b>, las dunas de Jockey\'s Ridge, los faros de <b>Currituck, Bodie Island, Cabo Hatteras y Ocracoke</b>, y vallas con lo más famoso del resto del estado. A tu izquierda, en el mar, aparece el barco de <b>Barba Negra</b> 🏴‍☠️.<br>🚤 El vehículo avanza solo. Tú solo eliges el <b>carril</b>: ' + (h ? 'mueve tu índice a la izquierda, al centro o a la derecha' : 'botones <b>◀ ▶</b> o desliza el dedo') + '.<br>⭐ Recoge estrellas · 🔴🟢 esquiva las boyas (tienes 3 ❤️) · 📸 fotografía los animales (🐴 🐬 🐢 🐦): ' + (h ? 'deja tu índice quieto sobre el animal' : 'tócalo o usa el botón 📸') + ' y verás tu foto.<br>❓ En 8 paradas respondes una pregunta sobre Carolina del Norte. ¡Llega a Ocracoke!',
     fact: 'Las placas de los carros de Carolina del Norte dicen «First in Flight» (primeros en volar), porque el primer vuelo en avión con motor de la historia fue en Kill Devil Hills, en los Outer Banks, el 17 de diciembre de 1903.'
   },
   // el juego de drones (clave 'heroes') se quitó: venía de la Isla de Héroes de los parques de Orlando

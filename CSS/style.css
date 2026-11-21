@@ -249,3 +249,15 @@ ol.steps li::before{counter-increment:s;content:counter(s);position:absolute;lef
 .langsw button{font:600 14px "Baloo 2",system-ui,sans-serif;color:#fff;background:rgba(20,26,61,.7);border:2px solid rgba(255,255,255,.35);border-radius:999px;padding:6px 12px;cursor:pointer}
 .langsw button.on{background:var(--sun,#ffd54a);color:#1a0b2e;border-color:transparent}
 .qbtn[data-lang].on{background:var(--sun,#ffd54a);color:#1a0b2e}
+
+/* ---------- tour: foto de animales (polaroid), visor que apunta y botón 📸 ---------- */
+#polaroid{position:absolute;left:50%;top:44%;z-index:30;width:min(62vw,260px);padding:10px 10px 6px;background:#fff;border-radius:6px;box-shadow:0 12px 40px rgba(0,0,0,.45);transform:translate(-50%,-50%) rotate(-3deg);animation:polIn .35s cubic-bezier(.2,1.4,.4,1);pointer-events:none;transition:opacity .5s,transform .5s}
+#polaroid.out{opacity:0;transform:translate(-50%,-30%) rotate(6deg) scale(.6)}
+#polaroid canvas{width:100%;aspect-ratio:1;display:block;background:#9cc;border-radius:2px}
+#polaroid p{margin:6px 2px 0;font:600 13px/1.25 "Baloo 2",system-ui,sans-serif;color:#222;text-align:center}
+@keyframes polIn{from{transform:translate(-50%,-50%) rotate(-12deg) scale(.3);opacity:0}}
+#viewfinder{position:absolute;z-index:25;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;pointer-events:none;
+  background:conic-gradient(#ffd54a calc(var(--p,0)*360deg),rgba(255,255,255,.25) 0);-webkit-mask:radial-gradient(circle,transparent 34px,#000 35px);mask:radial-gradient(circle,transparent 34px,#000 35px)}
+#pickbar button.cam{font-size:30px}
+#pickbar button.cam.ready{background:#ffd54a;color:#1a0b2e;animation:camPulse 1s ease-in-out infinite}
+@keyframes camPulse{50%{transform:scale(1.08)}}

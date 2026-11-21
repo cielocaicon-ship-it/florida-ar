@@ -27,10 +27,11 @@ const SPORTS = {
   miami: { c: '#24d1ff', how: 'Viajas de pie en una lancha (o moto de agua) por los Outer Banks de Carolina del Norte; la playa, los faros y los caballos salvajes quedan a tu derecha. Para cambiar de carril inclina el cuerpo a la izquierda o a la derecha (o usa los botones ◀ ▶ de tu derecha o la palanca del control). Recoge estrellas ⭐, esquiva las boyas 🔴🟢, responde 5 preguntas y fotografía los animales: apúntalos con la mano y junta los dedos 📸. Si te mareas, cierra los ojos un momento o quítate el visor.' },
   heat: { c: '#ff8a00', full: 'Cancha completa', how: 'Toca el balón con la palma para agarrarlo. Empújalo hacia el piso para driblar: vuelve a tu mano. Para tirar, súbelo sobre tu cabeza y lánzalo cuando la barra esté en VERDE. Tiras desde la bandeja, el doble, el triple y al final puedes hacer una CLAVADA. Mete 5 canastas.' },
   fg: { c: '#3ddc84', full: 'Estadio completo', how: 'El estadio se abre como una ventana. Golpea el balón con la palma hacia los postes: más fuerte llega más lejos y hacia un lado apuntas a ese lado. Ojo: los jugadores cambian los postes de lado.' },
-  orlando: { c: '#9b5cff', how: 'El primer vuelo se juega en el celular.' },
+  orlando: { c: '#9b5cff', how: 'Vas sentado detrás del Wright Flyer de 1903 sobre las dunas de Kill Devil Hills. El avión avanza solo: mira hacia donde quieres volar (arriba sube, abajo baja, a los lados gira) y pasa por dentro de los 10 aros. No toques la arena. Si te mareas, cierra los ojos un momento o quítate el visor.' },
+  golf: { c: '#4fae4a', how: 'Estás en un green de Pinehurst, la cuna del golf de EE. UU. Junta los dedos (pinza) una vez para fijar la dirección de la flecha y otra vez para fijar la fuerza. Juega 5 hoyos: termina con máximo 4 golpes sobre el par.' },
   penalty: { c: '#24d1ff', full: 'Estadio completo', how: 'El estadio se abre como una ventana. Golpea el balón con la palma hacia el arco: si golpeas hacia arriba va alto y hacia un lado apuntas a esa esquina. La esquina dorada vale doble.' }
 };
-const WORLDS = ['city', 'miami']; // 'orlando' (primer vuelo) se juega solo en el celular // fila de mundos en realidad virtual del menú (en este orden)
+const WORLDS = ['orlando', 'golf', 'city', 'miami']; // fila de mundos en realidad virtual (como en la versión de Florida: 4 en fila) // fila de mundos en realidad virtual del menú (en este orden)
 
 /* ================= Estilo «arcade tropical» (los mismos colores de CSS/style.css) ================= */
 const C = { ink: '#1a0b2e', violet: '#2a0e4a', pink: '#ff4fa3', orange: '#ff8a00', sun: '#ffd54a', sea: '#24d1ff', ok: '#3ddc84', bad: '#ff4d5e', text2: '#c9d1ff' };
