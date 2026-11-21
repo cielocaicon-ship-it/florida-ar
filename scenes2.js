@@ -1452,7 +1452,21 @@ function golf(ctx, opt) {
   const cup = add(g, new THREE.CircleGeometry(GOLF.CUP, 24), M(0x111111), 0, 0.02, 0, false); cup.rotation.x = -Math.PI / 2;
   const flag = new THREE.Group(); g.add(flag); add(flag, cyl(0.025, 0.025, 2.3, 6), M(0xffffff), 0, 1.15, 0);
   const cloth = add(flag, new THREE.PlaneGeometry(0.7, 0.45), M(0xffd23a, { side: THREE.DoubleSide }), 0.36, 2.05, 0, false);
-  const ball = add(g, sph(0.07, 16), M(0xffffff, { roughness: 0.35 }), 0, 0.07, 0);
+  // bola de golf realista: hoyuelos (para que se note cuando gira), sombra debajo y un palo (putter/hierro) que la golpea
+  const BR = 0.06; // radio de la bola (m)
+  const dimT = canvasTex(256, 128, (c, w, h) => { c.fillStyle = '#fbfbf8'; c.fillRect(0, 0, w, h); for (let y = 4; y < h; y += 8) for (let x = (y / 8 % 2) * 4; x < w; x += 8) { const gr = c.createRadialGradient(x, y, 0, x, y, 3.4); gr.addColorStop(0, 'rgba(0,0,0,.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = gr; c.beginPath(); c.arc(x, y, 3.4, 0, 7); c.fill(); } c.fillStyle = '#d4202a'; c.fillRect(0, h / 2 - 2, w * 0.3, 4); });
+  const ball = add(g, new THREE.SphereGeometry(BR, 32, 24), temp(new THREE.MeshStandardMaterial({ map: dimT, bumpMap: dimT, bumpScale: 0.6, roughness: 0.32 })), 0, BR, 0);
+  const blob = add(g, new THREE.CircleGeometry(BR * 1.3, 20), temp(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false })), 0, 0.012, 0, false); blob.rotation.x = -Math.PI / 2; blob.renderOrder = 5;
+  const trail = []; for (let k = 0; k < 10; k++) { const d = add(g, sph(0.025, 6), temp(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 })), 0, 0, 0, false); trail.push(d); }
+  let trailT = 0, trailI = 0;
+  const putter = new THREE.Group(); g.add(putter); // el palo gira desde las manos del golfista (arriba) hacia la bola
+  const swing = new THREE.Group(); swing.position.y = 1.05; putter.add(swing);
+  add(swing, cyl(0.011, 0.011, 1.0, 8), M(0xb8bcc4, { metalness: 0.9, roughness: 0.25 }), 0, -0.5, 0);
+  add(swing, cyl(0.016, 0.016, 0.24, 8), M(0x1a1a1a, { roughness: 0.8 }), 0, -0.05, 0); // empuñadura
+  add(swing, box(0.06, 0.05, 0.2), M(0xd0d4da, { metalness: 0.95, roughness: 0.2 }), 0, -1.0, 0.04); // cabeza del palo
+  let swingA = 0, swingGoal = 0, hitAnim = 0, swing0 = 0;
+  const spinQ = new THREE.Quaternion(), spinAx = new V3();
+  let by = BR, vy = 0, air = false;
   const sandG = new THREE.Group(); g.add(sandG);
   const arrow = new THREE.Group(); g.add(arrow);
   const arM = temp(new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.9, depthTest: false }));
@@ -1469,14 +1483,18 @@ function golf(ctx, opt) {
   const surface = (x, z) => { for (const [sx, sz, r] of H.sand) if (Math.hypot(x - sx, z - sz) < r) return 'sand'; return (x / 8) ** 2 + (z / 13) ** 2 < 1 ? 'green' : (x / 12) ** 2 + (z / 17) ** 2 < 1 ? 'rough' : 'out'; };
   const refreshHint = () => ctx.hint(opt.xr ? '🤏 Junta los dedos: 1) fija la dirección · 2) fija la fuerza' : ctx.isHand() ? '☝️ Deja el índice quieto sobre el botón (o junta los dedos): 1) dirección · 2) fuerza' : '👆 Toca: 1) fija la dirección · 2) fija la fuerza · o desliza desde la bola hacia el hoyo');
   function setupHole(i) {
-    hi = i; H = HOLES[i]; strokes = 0;
+    hi = i; H = HOLES[i]; strokes = 0; by = BR; vy = 0; air = false; blob.visible = true;
     pos.set(...H.start); hole.set(...H.hole); vel.set(0, 0);
     cup.position.set(hole.x, 0.02, hole.y); flag.position.set(hole.x, 0, hole.y); flag.visible = true;
     sandG.clear(); for (const [x, z, r] of H.sand) { const s = add(sandG, new THREE.CircleGeometry(r, 28), M(0xead9a8, { roughness: 1 }), x, 0.015, z, false); s.rotation.x = -Math.PI / 2; }
     ball.visible = true; placeBall(); readyAim(); info();
     if (running) ctx.toast(`⛳ Hoyo ${i + 1} · Par ${H.par}` + (H.slope[0] || H.slope[1] ? ' · ⚠️ el green está inclinado' : ''), 2200);
   }
-  function placeBall() { ball.position.set(pos.x, 0.07, pos.y); }
+  function placeClub() { // el palo se pone detrás de la bola, mirando hacia donde vas a tirar
+    putter.visible = phase === 'aim' || phase === 'power' || phase === 'ready' || hitAnim > 0;
+    putter.position.set(pos.x - Math.sin(aim) * 0.1, 0, pos.y + Math.cos(aim) * 0.1); putter.rotation.y = -aim;
+  }
+  function placeBall() { ball.position.set(pos.x, by, pos.y); blob.position.set(pos.x, 0.012, pos.y); const k = Math.max(0.35, 1 - (by - BR) * 0.5); blob.scale.setScalar(k); blob.material.opacity = 0.35 * k; }
   function readyAim() {
     aimBase = Math.atan2(hole.x - pos.x, -(hole.y - pos.y)); aimT = 0; pwr = 0; phase = 'aim'; bSwing.textContent = '⛳ Fijar dirección'; arrow.visible = true;
     if (opt.xr) { const bx = pos.x - Math.sin(aimBase) * 1.2, bz = pos.y + Math.cos(aimBase) * 1.2; ctx.teleport(bx, bz, hole.x, hole.y); }
@@ -1489,6 +1507,9 @@ function golf(ctx, opt) {
   function shoot(ang, p) {
     phase = 'roll'; strokes++; last.copy(pos); arrow.visible = false; dots.forEach(d => (d.visible = false));
     const v = 0.8 + p * (GOLF.VMAX - 0.8); vel.set(Math.sin(ang) * v, -Math.cos(ang) * v);
+    air = p > 0.45; vy = air ? (p - 0.3) * 5.5 : 0; // los golpes fuertes levantan la bola (chip): vuela, bota y luego rueda
+    if (air) vel.multiplyScalar(0.8);
+    swingGoal = 0; hitAnim = 0.25; swing0 = swingA; trail.forEach(d => (d.material.opacity = 0));
     ctx.sfx('hit'); if (opt.xr) ctx.xr().haptic(0.7, 40); info(); bSwing.textContent = '⏳ …'; bSwing.disabled = true;
   }
   function holeDone(inCup) {
@@ -1525,6 +1546,11 @@ function golf(ctx, opt) {
     xrInput(type) { if (type === 'selectstart') step(); },
     update(dt, t) {
       cloth.rotation.y = Math.sin(t * 2.5) * 0.25;
+      trail.forEach(d => (d.material.opacity = Math.max(0, d.material.opacity - dt * 0.8)));
+      // palo: en «fuerza» se va hacia atrás según la barra; al golpear pasa rápido por la bola
+      if (phase === 'power') swingGoal = -pwr * 1.1; else if (phase === 'aim' || phase === 'ready') swingGoal = -0.12;
+      if (hitAnim > 0) { hitAnim -= dt; const k = 1 - Math.max(0, hitAnim) / 0.25; swingA = swing0 + (0.8 - swing0) * k; } else swingA += (swingGoal - swingA) * Math.min(1, dt * 10);
+      swing.rotation.x = swingA; placeClub();
       if (phase === 'intro' && !opt.xr) { introT += dt; const a = introT * 0.25; camera.position.set(Math.sin(a) * 16, 6 + Math.sin(a) * 1.5, Math.cos(a) * 16 + 2); camera.lookAt(0, 0, -2); if (introT > 6) { phase = 'ready'; ctx.ready(); } return; }
       if (phase === 'aim') { aimT += dt; aim = aimBase + Math.sin(aimT * GOLF.SWING) * 0.55; }
       if (phase === 'power') { pwrT += dt; const k = (pwrT * GOLF.PWR) % 2; pwr = k < 1 ? k : 2 - k; }
@@ -1537,25 +1563,31 @@ function golf(ctx, opt) {
       if (phase === 'roll') {
         const sub = 4, h = dt / sub;
         for (let k = 0; k < sub; k++) {
+          if (air) { vy -= 9.8 * h; by += vy * h; pos.addScaledVector(vel, h); vel.multiplyScalar(1 - 0.05 * h); // en el aire: gravedad
+            if (by <= BR) { by = BR; if (Math.abs(vy) > 0.9) { vy = -vy * 0.35; vel.multiplyScalar(surface(pos.x, pos.y) === 'sand' ? 0.25 : 0.7); ctx.sfx('bounce'); } else { vy = 0; air = false; } }
+            if (surface(pos.x, pos.y) === 'out') { ctx.toast('🚫 ¡Fuera del campo! +1 golpe. Vuelves a donde estabas.', 2000); ctx.sfx('block'); strokes++; pos.copy(last); vel.set(0, 0); air = false; by = BR; vy = 0; }
+            continue; }
           const sf = surface(pos.x, pos.y), fr = sf === 'sand' ? GOLF.SAND : sf === 'rough' ? GOLF.ROUGH : GOLF.GREEN, sp = vel.length();
           if (sf === 'green') vel.x += H.slope[0] * h, vel.y += H.slope[1] * h;
           if (sp > 0) vel.multiplyScalar(Math.max(0, sp - fr * h) / sp);
           pos.addScaledVector(vel, h);
           const dh = pos.distanceTo(hole);
-          if (dh < GOLF.CUP) { if (vel.length() < GOLF.CAP) { ball.position.set(hole.x, -0.05, hole.y); ctx.sfx('rim'); holeDone(true); return; } vel.rotateAround(new V2(), rnd(-0.6, 0.6)).multiplyScalar(0.6); ctx.sfx('rim'); } // ¡bordeó el hoyo!
+          if (dh < GOLF.CUP) { if (vel.length() < GOLF.CAP) { ball.position.set(hole.x, -0.05, hole.y); blob.visible = false; ctx.sfx('rim'); holeDone(true); return; } vel.rotateAround(new V2(), rnd(-0.6, 0.6)).multiplyScalar(0.6); ctx.sfx('rim'); } // ¡bordeó el hoyo!
           else if (dh < GOLF.CUP * 2.2 && vel.length() < GOLF.CAP * 0.6) { const pull = hole.clone().sub(pos).setLength(1.2 * h); vel.add(pull); } // la bola «cae» si pasa muy cerca y despacio
           if (surface(pos.x, pos.y) === 'out') { ctx.toast('🚫 ¡Fuera del campo! +1 golpe. Vuelves a donde estabas.', 2000); ctx.sfx('block'); strokes++; pos.copy(last); vel.set(0, 0); }
         }
-        placeBall(); ball.rotation.x -= vel.y * dt * 6; ball.rotation.z += vel.x * dt * 6;
-        if (vel.length() < 0.04) {
+        placeBall();
+        const sp2 = vel.length(); if (sp2 > 0.001) { spinAx.set(-vel.y, 0, vel.x).normalize(); spinQ.setFromAxisAngle(spinAx, sp2 * dt / BR); ball.quaternion.premultiply(spinQ); } // gira de verdad según lo que avanza
+        trailT += dt; if (trailT > 0.05 && sp2 > 1) { trailT = 0; const d = trail[trailI++ % trail.length]; d.position.copy(ball.position); d.material.opacity = 0.5; }
+        if (vel.length() < 0.04 && !air) {
           vel.set(0, 0); bSwing.disabled = false;
           if (strokes >= GOLF.MAXS) holeDone(false); else { if (surface(pos.x, pos.y) === 'sand') ctx.toast('🏖️ Quedaste en la arena: golpea más fuerte', 1600); readyAim(); info(); }
         }
       }
       if (!opt.xr) { // cámara detrás de la bola, mirando al hoyo
         const yaw = phase === 'roll' ? Math.atan2(hole.x - last.x, -(hole.y - last.y)) : aimBase, bx = phase === 'roll' ? last.x : pos.x, bz = phase === 'roll' ? last.y : pos.y;
-        _c.set(bx - Math.sin(yaw) * 4.5, 2.6, bz + Math.cos(yaw) * 4.5); camera.position.lerp(_c, Math.min(1, dt * 3));
-        _t.set(phase === 'roll' ? pos.x : (pos.x + hole.x) / 2, 0, phase === 'roll' ? pos.y : (pos.y + hole.y) / 2); camera.lookAt(_t);
+        _c.set(bx - Math.sin(yaw) * 3.2, 1.7, bz + Math.cos(yaw) * 3.2); camera.position.lerp(_c, Math.min(1, dt * 3));
+        _t.set(phase === 'roll' ? pos.x : pos.x + (hole.x - pos.x) * 0.35, 0, phase === 'roll' ? pos.y : pos.y + (hole.y - pos.y) * 0.35); camera.lookAt(_t);
       }
     },
     dispose() { alive = false; running = false; restoreEnv(); bar.remove(); document.body.classList.remove('hasbar'); }

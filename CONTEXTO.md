@@ -127,6 +127,8 @@ JUEGO.md            biblia del juego: arte, game feel, decisiones de diseño
 
 ## 8. Bitácora
 <!-- Entradas nuevas ARRIBA. Aquí se conservan las últimas 8; las anteriores se archivan solas en .hilo/historial.md -->
+### 2026-11-21 · v2.3.1 · Claude (chat)
+- Golf: bola con hoyuelos que gira según lo que avanza, sombra, rastro, golpes fuertes que la elevan (vuela y bota) y un palo que se va hacia atrás con la barra de fuerza y golpea. Cámara más cerca de la bola.
 ### 2026-11-21 · v2.3.0 · Claude (chat)
 - Nuevo juego ⛳ **Pinehurst — Golf** (clave `golf`, `golf()` en `scenes2.js`, ajustes en `GOLF` y `HOLES`): 5 hoyos; cada golpe = fijar dirección y fijar fuerza (toque, botón con dwell del dedo, pinza o deslizar). Ahora son 7 juegos / 7 estrellas.
 - Tour Outer Banks: foto real del animal (polaroid) al tomarla; con la mano basta dejar el índice quieto sobre el animal (visor amarillo); botón 📸 que se ilumina si hay un animal a la vista; 8 paradas: 5 preguntas de los lugares + 3 al azar de `TRIVIA` (16 preguntas del estado).
