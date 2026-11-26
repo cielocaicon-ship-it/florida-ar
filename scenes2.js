@@ -27,7 +27,7 @@ function stadium(g, { fieldTex, w, l, cz, crowdCols }) { // estadio nocturno con
   const f = add(g, new THREE.PlaneGeometry(w, l), temp(new THREE.MeshStandardMaterial({ map: fieldTex, roughness: 0.95 })), 0, 0.01, cz, false); f.rotation.x = -Math.PI / 2; f.receiveShadow = true;
   const ap = add(g, new THREE.PlaneGeometry(w + 24, l + 24), M(0x2a5a2a, { roughness: 1 }), 0, 0, cz, false); ap.rotation.x = -Math.PI / 2; ap.receiveShadow = true;
   const seat = M(0x1b1f2a, { roughness: 0.9 }), seat2 = M(0x2a2f3e, { roughness: 0.9 }), fans = [];
-  const dens = [0.35, 0.6, 0.85][Q];
+  const dens = [0.3, 0.45, 0.85][Q];
   const side = (cx, czz, len, alongX, out) => {
     for (let k = 0; k < 10; k++) {
       const off = 1.6 * k + 2, top = 0.9 + k * 0.9, x = alongX ? cx : cx + out * off, z = alongX ? czz + out * off : czz;
@@ -36,7 +36,7 @@ function stadium(g, { fieldTex, w, l, cz, crowdCols }) { // estadio nocturno con
     }
   };
   side(-w / 2 - 6, cz, l, false, -1); side(w / 2 + 6, cz, l, false, 1); side(0, cz - l / 2 - 6, w, true, -1); side(0, cz + l / 2 + 6, w, true, 1);
-  const bodyG = new THREE.CapsuleGeometry(0.2, 0.42, 3, 8), headG = new THREE.SphereGeometry(0.12, 10, 8);
+  const lo = Q < 2, bodyG = new THREE.CapsuleGeometry(0.2, 0.42, lo ? 2 : 3, lo ? 6 : 8), headG = new THREE.SphereGeometry(0.12, lo ? 7 : 10, lo ? 5 : 8); // en calidad baja/media, menos detalle
   const bi = new THREE.InstancedMesh(bodyG, temp(new THREE.MeshStandardMaterial({ roughness: 0.85 })), fans.length), hi = new THREE.InstancedMesh(headG, temp(new THREE.MeshStandardMaterial({ roughness: 0.7 })), fans.length);
   const m4 = new THREE.Matrix4(), col = new THREE.Color();
   fans.forEach((p, i) => { m4.makeTranslation(p[0], p[1], p[2]); bi.setMatrixAt(i, m4); m4.makeTranslation(p[0], p[1] + 0.45, p[2]); hi.setMatrixAt(i, m4); bi.setColorAt(i, col.set(pick(crowdCols))); hi.setColorAt(i, col.set(pick(SKINS))); });
@@ -1415,7 +1415,7 @@ function firstFlight(ctx, opt) {
    En el celular también puedes deslizar el dedo desde la bola hacia el hoyo.
    GOLF: ajustes · VMAX: fuerza máxima (m/s) · GREEN/ROUGH/SAND: cuánto frena cada superficie · CUP: radio del hoyo (m) · CAP: velocidad máxima para que la bola entre
    SWING: velocidad de la flecha · PWR: velocidad de la barra de fuerza · MAXS: golpes máximos por hoyo · EXTRA: golpes sobre el par permitidos para ganar la estrella */
-const GOLF = { VMAX: 9.5, GREEN: 1.5, ROUGH: 5, SAND: 11, CUP: 0.22, CAP: 2.6, SWING: 1.5, PWR: 0.75, MAXS: 5, EXTRA: 4 };
+const GOLF = { VMAX: 9.5, GREEN: 1.5, ROUGH: 5, SAND: 11, CUP: 0.24, CAP: 2.8, SWING: 1.1, AIM: 0.4, PWR: 0.6, MAXS: 5, EXTRA: 4 };
 const HOLES = [ // inicio, hoyo, pendiente (empuja la bola) y trampas de arena [x, z, radio]
   { par: 2, start: [0, 9], hole: [0, -8], slope: [0, 0], sand: [] },
   { par: 2, start: [-3, 9], hole: [3, -8], slope: [0.25, 0], sand: [[0, 0, 2.2]] },
@@ -1437,7 +1437,11 @@ function golf(ctx, opt) {
   lightRig(g, { sky: 0xd8ecff, ground: 0x9ab070, hemi: 1.0, sun: 0xfff2dc, sunI: 2.7, dir: [-12, 26, 10], size: 22, target: [0, 0, 0] });
   // campo: arena natural de los Sandhills, calle, green, pinos y el club
   const sandy = add(g, new THREE.CircleGeometry(160, 48), M(0xd9c79a, { roughness: 1 }), 0, -0.02, 0, false); sandy.rotation.x = -Math.PI / 2; sandy.receiveShadow = true;
-  for (let i = 0; i < 260; i++) { const wx = rnd(-60, 60), wz = rnd(-70, 60); if ((wx / 13) ** 2 + (wz / 18) ** 2 < 1) continue; add(g, cone(0.25, 0.6, 4), M(pick([0x9a9a5a, 0xb0a868]), { roughness: 1 }), wx, 0.25, wz, false); } // pasto de alambre (wiregrass), fuera del campo
+  { // pasto de alambre (wiregrass) fuera del campo: un solo objeto con muchas copias (más liviano para el celular)
+    const N = Q < 2 ? 160 : 260, wg = new THREE.InstancedMesh(keep(new THREE.ConeGeometry(0.25, 0.6, 4)), M(0xa8a062, { roughness: 1 }), N), m4 = new THREE.Matrix4();
+    for (let i = 0; i < N; i++) { let wx, wz; do { wx = rnd(-60, 60); wz = rnd(-70, 60); } while ((wx / 13) ** 2 + (wz / 18) ** 2 < 1); m4.makeTranslation(wx, 0.25, wz); wg.setMatrixAt(i, m4); }
+    g.add(wg);
+  }
   const grassT = rep(canvasTex(256, 256, (c, w, h) => { for (let i = 0; i < 16; i++) { c.fillStyle = i % 2 ? '#5fa845' : '#6bb54f'; c.fillRect(0, i * 16, w, 16); } }), 6, 6);
   const fair = add(g, new THREE.CircleGeometry(1, 48), temp(new THREE.MeshStandardMaterial({ map: grassT, roughness: 0.9 })), 0, 0, 0, false); fair.rotation.x = -Math.PI / 2; fair.scale.set(12, 17, 1); fair.receiveShadow = true;
   const greenT = rep(canvasTex(256, 256, (c, w, h) => { for (let i = 0; i < 16; i++) { c.fillStyle = i % 2 ? '#4fae4a' : '#58b852'; c.fillRect(i * 16, 0, 16, h); } }), 4, 4);
@@ -1464,7 +1468,7 @@ function golf(ctx, opt) {
   add(swing, cyl(0.011, 0.011, 1.0, 8), M(0xb8bcc4, { metalness: 0.9, roughness: 0.25 }), 0, -0.5, 0);
   add(swing, cyl(0.016, 0.016, 0.24, 8), M(0x1a1a1a, { roughness: 0.8 }), 0, -0.05, 0); // empuñadura
   add(swing, box(0.06, 0.05, 0.2), M(0xd0d4da, { metalness: 0.95, roughness: 0.2 }), 0, -1.0, 0.04); // cabeza del palo
-  let swingA = 0, swingGoal = 0, hitAnim = 0, swing0 = 0;
+  let swingA = 0, swingGoal = 0, hitAnim = 0, swing0 = 0, lastInfo = '';
   const spinQ = new THREE.Quaternion(), spinAx = new V3();
   let by = BR, vy = 0, air = false;
   const sandG = new THREE.Group(); g.add(sandG);
@@ -1479,7 +1483,7 @@ function golf(ctx, opt) {
   let hi = 0, H = HOLES[0], strokes = 0, total = 0, parTotal = 0, phase = 'intro', aim = 0, aimBase = 0, aimT = 0, pwr = 0, pwrT = 0, running = false, ended = false;
   const pos = new V2(), vel = new V2(), last = new V2(), hole = new V2(); let introT = 0, sinkT = 0;
   const cards = []; // golpes por hoyo
-  const info = () => ctx.info(`⛳ Hoyo ${hi + 1}/5 · Par ${H.par} · Golpes ${strokes} · Total ${total + strokes}/${parTotal + H.par}`);
+  const info = () => ctx.info(`⛳ Hoyo ${hi + 1}/5 · Par ${H.par} · Golpes ${strokes} · Total ${total + strokes}/${parTotal + (phase === 'sunk' ? 0 : H.par)}`);
   const surface = (x, z) => { for (const [sx, sz, r] of H.sand) if (Math.hypot(x - sx, z - sz) < r) return 'sand'; return (x / 8) ** 2 + (z / 13) ** 2 < 1 ? 'green' : (x / 12) ** 2 + (z / 17) ** 2 < 1 ? 'rough' : 'out'; };
   const refreshHint = () => ctx.hint(opt.xr ? '🤏 Junta los dedos: 1) fija la dirección · 2) fija la fuerza' : ctx.isHand() ? '☝️ Deja el índice quieto sobre el botón (o junta los dedos): 1) dirección · 2) fuerza' : '👆 Toca: 1) fija la dirección · 2) fija la fuerza · o desliza desde la bola hacia el hoyo');
   function setupHole(i) {
@@ -1528,7 +1532,7 @@ function golf(ctx, opt) {
   }
   // deslizar en el celular: de la bola hacia el hoyo (largo = fuerza)
   let sx0 = 0, sy0 = 0, t0 = 0;
-  let alive = true; const _v3 = new V3(), _c = new V3(), _t = new V3();
+  let alive = true; const _v3 = new V3(), _c = new V3(), _t = new V3(), _o2 = new V2(), _p2 = new V2();
   setupHole(0); phase = 'intro';
   if (opt.xr) setTimeout(() => { if (alive && phase === 'intro') { phase = 'ready'; ctx.ready(); } }, 300); // en el visor no hay intro de cámara
   return {
@@ -1552,13 +1556,13 @@ function golf(ctx, opt) {
       if (hitAnim > 0) { hitAnim -= dt; const k = 1 - Math.max(0, hitAnim) / 0.25; swingA = swing0 + (0.8 - swing0) * k; } else swingA += (swingGoal - swingA) * Math.min(1, dt * 10);
       swing.rotation.x = swingA; placeClub();
       if (phase === 'intro' && !opt.xr) { introT += dt; const a = introT * 0.25; camera.position.set(Math.sin(a) * 16, 6 + Math.sin(a) * 1.5, Math.cos(a) * 16 + 2); camera.lookAt(0, 0, -2); if (introT > 6) { phase = 'ready'; ctx.ready(); } return; }
-      if (phase === 'aim') { aimT += dt; aim = aimBase + Math.sin(aimT * GOLF.SWING) * 0.55; }
+      if (phase === 'aim') { aimT += dt; aim = aimBase + Math.sin(aimT * GOLF.SWING) * GOLF.AIM; }
       if (phase === 'power') { pwrT += dt; const k = (pwrT * GOLF.PWR) % 2; pwr = k < 1 ? k : 2 - k; }
       if (phase === 'aim' || phase === 'power' || phase === 'ready') {
         arrow.position.set(pos.x, 0, pos.y); arrow.rotation.y = -aim; const L = 0.6 + (phase === 'power' ? pwr * 3.4 : 1.4);
-        shaft.scale.z = L; shaft.position.z = -L / 2; head.position.z = -L - 0.15; arM.color.set(phase === 'power' ? new THREE.Color().setHSL(0.33 - pwr * 0.33, 1, 0.55) : 0xffd23a);
+        shaft.scale.z = L; shaft.position.z = -L / 2; head.position.z = -L - 0.15; if (phase === 'power') arM.color.setHSL(0.33 - pwr * 0.33, 1, 0.55); else arM.color.set(0xffd23a);
         dots.forEach((d, k) => { d.visible = true; const r = 1.2 + k * 0.9; d.position.set(pos.x + Math.sin(aim) * r, 0.05, pos.y - Math.cos(aim) * r); });
-        if (running) ctx.info(`⛳ Hoyo ${hi + 1}/5 · Par ${H.par} · Golpe ${strokes + 1}` + (phase === 'power' ? ` · 💥 ${'▮'.repeat(Math.round(pwr * 10))}${'▯'.repeat(10 - Math.round(pwr * 10))}` : ''));
+        if (running) { const it = `⛳ Hoyo ${hi + 1}/5 · Par ${H.par} · Golpe ${strokes + 1}` + (phase === 'power' ? ` · 💥 ${'▮'.repeat(Math.round(pwr * 10))}${'▯'.repeat(10 - Math.round(pwr * 10))}` : ''); if (it !== lastInfo) { lastInfo = it; ctx.info(it); } }
       }
       if (phase === 'roll') {
         const sub = 4, h = dt / sub;
@@ -1572,8 +1576,8 @@ function golf(ctx, opt) {
           if (sp > 0) vel.multiplyScalar(Math.max(0, sp - fr * h) / sp);
           pos.addScaledVector(vel, h);
           const dh = pos.distanceTo(hole);
-          if (dh < GOLF.CUP) { if (vel.length() < GOLF.CAP) { ball.position.set(hole.x, -0.05, hole.y); blob.visible = false; ctx.sfx('rim'); holeDone(true); return; } vel.rotateAround(new V2(), rnd(-0.6, 0.6)).multiplyScalar(0.6); ctx.sfx('rim'); } // ¡bordeó el hoyo!
-          else if (dh < GOLF.CUP * 2.2 && vel.length() < GOLF.CAP * 0.6) { const pull = hole.clone().sub(pos).setLength(1.2 * h); vel.add(pull); } // la bola «cae» si pasa muy cerca y despacio
+          if (dh < GOLF.CUP) { if (vel.length() < GOLF.CAP) { ball.position.set(hole.x, -0.05, hole.y); blob.visible = false; ctx.sfx('rim'); holeDone(true); return; } vel.rotateAround(_o2, rnd(-0.6, 0.6)).multiplyScalar(0.6); ctx.sfx('rim'); } // ¡bordeó el hoyo!
+          else if (dh < GOLF.CUP * 2.2 && vel.length() < GOLF.CAP * 0.6) { _p2.copy(hole).sub(pos).setLength(1.2 * h); vel.add(_p2); } // la bola «cae» si pasa muy cerca y despacio
           if (surface(pos.x, pos.y) === 'out') { ctx.toast('🚫 ¡Fuera del campo! +1 golpe. Vuelves a donde estabas.', 2000); ctx.sfx('block'); strokes++; pos.copy(last); vel.set(0, 0); }
         }
         placeBall();

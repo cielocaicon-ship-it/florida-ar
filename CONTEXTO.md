@@ -127,6 +127,10 @@ JUEGO.md            biblia del juego: arte, game feel, decisiones de diseño
 
 ## 8. Bitácora
 <!-- Entradas nuevas ARRIBA. Aquí se conservan las últimas 8; las anteriores se archivan solas en .hilo/historial.md -->
+### 2026-11-26 · v2.3.2 · Claude (chat)
+- Golf más fluido: el pasto es un solo objeto con copias (antes 260 objetos), no se crean objetos nuevos en cada cuadro y el texto de arriba solo se actualiza si cambia. Apuntar es más fácil (`GOLF.SWING`, `GOLF.AIM`, `GOLF.PWR`) y el hoyo un poco más grande.
+- Estadios (Hornets, Panthers, Charlotte FC): público con menos detalle en calidad baja/media → la mitad de triángulos.
+- Revisión: los 7 juegos cargan sin errores y en inglés (Chrome automático, iPhone simulado); golf jugado completo con clics reales sin quedarse trabado.
 ### 2026-11-21 · v2.3.1 · Claude (chat)
 - Golf: bola con hoyuelos que gira según lo que avanza, sombra, rastro, golpes fuertes que la elevan (vuela y bota) y un palo que se va hacia atrás con la barra de fuerza y golpea. Cámara más cerca de la bola.
 ### 2026-11-21 · v2.3.0 · Claude (chat)

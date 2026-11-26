@@ -1854,11 +1854,12 @@ function heat(ctx, opt) {
   };
   stand(-12, 8.2, 38, false, -1); stand(12, 8.2, 38, false, 1); stand(0, -9, 24, true, -1); stand(0, 25, 24, true, 1);
   const mg = (parts) => keep(mergeGeometries(parts.map(([geo, x, y, z, rx = 0, rz = 0]) => geo.clone().rotateX(rx).rotateZ(rz).translate(x, y, z)), false));
-  const armC = new THREE.CapsuleGeometry(0.055, 0.45, 3, 8), legC = new THREE.CapsuleGeometry(0.085, 0.62, 3, 8), thC = new THREE.CapsuleGeometry(0.09, 0.32, 3, 8);
+  const lo = Q < 2, cs = lo ? 2 : 3, rs = lo ? 6 : 8; // en calidad baja/media el público tiene menos detalle (más fluido en el celular)
+  const armC = new THREE.CapsuleGeometry(0.055, 0.45, cs, rs), legC = new THREE.CapsuleGeometry(0.085, 0.62, cs, rs), thC = new THREE.CapsuleGeometry(0.09, 0.32, cs, rs);
   const GEO = {
-    torso: keep(new THREE.CapsuleGeometry(0.2, 0.36, 4, 10).scale(1, 1, 0.62)),
-    head: keep(new THREE.SphereGeometry(0.115, 12, 9).scale(0.92, 1.08, 1)),
-    hair: keep(new THREE.SphereGeometry(0.122, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55)),
+    torso: keep(new THREE.CapsuleGeometry(0.2, 0.36, lo ? 3 : 4, lo ? 8 : 10).scale(1, 1, 0.62)),
+    head: keep(new THREE.SphereGeometry(0.115, lo ? 8 : 12, lo ? 6 : 9).scale(0.92, 1.08, 1)),
+    hair: keep(new THREE.SphereGeometry(0.122, lo ? 8 : 12, lo ? 5 : 8, 0, Math.PI * 2, 0, Math.PI * 0.55)),
     legs: mg([[legC, -0.1, -0.62, 0], [legC, 0.1, -0.62, 0]]),
     thighs: mg([[thC, -0.1, -0.3, 0.2, Math.PI / 2], [thC, 0.1, -0.3, 0.2, Math.PI / 2], [legC, -0.1, -0.62, 0.4], [legC, 0.1, -0.62, 0.4]]),
     down: mg([[armC, -0.25, -0.02, 0.02, 0, -0.1], [armC, 0.25, -0.02, 0.02, 0, 0.1]]),
